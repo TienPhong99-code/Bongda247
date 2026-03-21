@@ -275,18 +275,22 @@ function parseAIJson(text) {
   );
 }
 
-// Escape ký tự đặc biệt Markdown V1 trong nội dung động (AI có thể tạo ra)
-function escapeMd(text) {
-  return String(text ?? "").replace(/[*_`[]/g, "\\$&");
+// Escape HTML entities cho nội dung động (AI có thể tạo ra ký tự đặc biệt)
+function escapeHtml(text) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
+
 
 function buildInsightText(data) {
   const hotStatus = data.hot ? "🔥 CÓ" : "❄️ KHÔNG";
   return (
-    `🏟 *${escapeMd(data.homeTeam)}* vs *${escapeMd(data.awayTeam)}*\n` +
-    `⏰ ${escapeMd(data.matchTime)}  •  🔥 HOT: ${hotStatus}\n\n` +
-    `📊 *Nhận định:*\n${data.insights.map((i) => `• ${escapeMd(i)}`).join("\n")}\n\n` +
-    `🎯 *Dự đoán:* ${escapeMd(data.prediction)}`
+    `🏟 <b>${escapeHtml(data.homeTeam)}</b> vs <b>${escapeHtml(data.awayTeam)}</b>\n` +
+    `⏰ ${escapeHtml(data.matchTime)}  •  🔥 HOT: ${hotStatus}\n\n` +
+    `📊 <b>Nhận định:</b>\n${(data.insights ?? []).map((i) => `• ${escapeHtml(i)}`).join("\n")}\n\n` +
+    `🎯 <b>Dự đoán:</b> ${escapeHtml(data.prediction)}`
   );
 }
 
@@ -523,12 +527,12 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
         const draftId = `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         draftStore.set(draftId, draft);
 
-        const header = `${leagueInfo.flag} *${escapeMd(leagueInfo.name)}*\n`;
+        const header = `${leagueInfo.flag} <b>${escapeHtml(leagueInfo.name)}</b>\n`;
         await bot.telegram.sendMessage(
           targetChatId,
           header + buildInsightText(draft),
           {
-            parse_mode: "Markdown",
+            parse_mode: "HTML",
             reply_markup: buildDraftKeyboard(draftId, draft.hot),
           }
         );
@@ -580,7 +584,7 @@ Trả về DUY NHẤT JSON hợp lệ:
   pendingPosts.set(ctx.chat.id, { ...insightData, type: "matchInsight" });
 
   await ctx.reply(buildInsightText(insightData), {
-    parse_mode: "Markdown",
+    parse_mode: "HTML",
     reply_markup: buildInsightKeyboard(insightData),
   });
 }
@@ -809,7 +813,7 @@ bot.action("toggle_hot", async (ctx) => {
   pendingPosts.set(ctx.chat.id, data);
   try {
     await ctx.editMessageText(buildInsightText(data), {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: buildInsightKeyboard(data),
     });
     ctx.answerCbQuery(`HOT: ${data.hot ? "🔥 CÓ" : "❄️ KHÔNG"}`);
@@ -898,10 +902,10 @@ bot.on("callback_query", async (ctx) => {
     draftStore.set(draftId, draft);
 
     const leagueInfo = LEAGUE_MAP[draft.leagueCode] ?? {};
-    const header = leagueInfo.flag ? `${leagueInfo.flag} *${escapeMd(leagueInfo.name)}*\n` : "";
+    const header = leagueInfo.flag ? `${leagueInfo.flag} <b>${escapeHtml(leagueInfo.name)}</b>\n` : "";
     try {
       await ctx.editMessageText(header + buildInsightText(draft), {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: buildDraftKeyboard(draftId, draft.hot),
       });
       ctx.answerCbQuery(`HOT: ${draft.hot ? "🔥 CÓ" : "❄️ KHÔNG"}`);
