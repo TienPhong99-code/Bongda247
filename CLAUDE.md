@@ -5,14 +5,14 @@
 Website tin tức và phân tích bóng đá bằng AI, viết bằng **tiếng Việt**, tập trung vào các giải đấu lớn (Ngoại hạng Anh, Champions League, La Liga, Bundesliga, Serie A, Ligue 1).
 
 Dự án gồm **2 ứng dụng chính**:
-- `bongda247vn/` — CMS backend (Sanity Studio)
-- `football-ai-blog/` — Frontend website (Astro + React)
+- `cms/` — CMS backend (Sanity Studio)
+- `web/` — Frontend website (Astro + React)
 
 ---
 
 ## Tech Stack
 
-### Frontend (`football-ai-blog/`)
+### Frontend (`web/`)
 | Công nghệ | Version | Mục đích |
 |-----------|---------|----------|
 | Astro | 5.17.1 | Framework chính (SSR hybrid) |
@@ -25,7 +25,7 @@ Dự án gồm **2 ứng dụng chính**:
 | Telegraf | 4.16.3 | Telegram bot |
 | Axios | 1.13.6 | HTTP client |
 
-### Backend/CMS (`bongda247vn/`)
+### Backend/CMS (`cms/`)
 | Công nghệ | Version | Mục đích |
 |-----------|---------|----------|
 | Sanity Studio | 5.13.0 | Headless CMS |
@@ -36,7 +36,7 @@ Dự án gồm **2 ứng dụng chính**:
 
 ## Cấu trúc thư mục
 
-### Frontend (`football-ai-blog/src/`)
+### Frontend (`web/src/`)
 ```
 src/
 ├── assets/images/          # Icon assets (flame.png cho badge "hot")
@@ -77,11 +77,11 @@ src/
 ```
 
 ### File đặc biệt
-- `football-ai-blog/bot-press.js` — Telegram bot + AI tự động tạo bài đăng lên Sanity
+- `web/bot-press.js` — Telegram bot + AI tự động tạo bài đăng lên Sanity
 
-### CMS (`bongda247vn/`)
+### CMS (`cms/`)
 ```
-bongda247vn/
+cms/
 ├── schemaTypes/
 │   ├── index.ts            # Export tất cả schemas
 │   ├── post.ts             # Schema bài viết (title, slug, category, content, image, tags)
@@ -163,7 +163,7 @@ TELEGRAM_BOT_TOKEN=      # Telegram bot token
 
 ### Frontend
 ```bash
-cd football-ai-blog
+cd web
 npm run dev      # localhost:4321
 npm run build    # Build production → ./dist/
 npm run preview  # Preview bản build
@@ -171,7 +171,7 @@ npm run preview  # Preview bản build
 
 ### CMS
 ```bash
-cd bongda247vn
+cd cms
 yarn dev         # Start Sanity Studio
 yarn build       # Build Studio
 yarn deploy      # Deploy Studio lên Sanity cloud
@@ -179,7 +179,7 @@ yarn deploy      # Deploy Studio lên Sanity cloud
 
 ### Telegram Bot
 ```bash
-cd football-ai-blog
+cd web
 node bot-press.js
 ```
 
@@ -208,75 +208,107 @@ node bot-press.js
 ## Luồng hoạt động AI (`bot-press.js`)
 
 ### Khởi động
-1. Tải toàn bộ danh mục (category) từ Sanity qua GROQ → lưu vào `CATEGORIES` map (slug → `{id, title}`)
+1. Tải toàn bộ danh mục từ Sanity qua GROQ → lưu vào `CATEGORIES` map (slug → `{id, title}`)
 2. Không hardcode ID — dùng `/reload` để cập nhật danh mục mới bất kỳ lúc nào
 
-### Luồng 1 — INSIGHT (số liệu trận đấu)
-**Trigger:** tin nhắn chứa từ `INSIGHT` (hoa/thường đều được)
+### Luồng 1 — INSIGHT thủ công
+**Trigger:** tin nhắn chứa từ `INSIGHT`
 
-1. Gửi nội dung trận đấu kèm từ khóa INSIGHT
-2. Gemini trích xuất JSON: `homeTeam`, `awayTeam`, `matchTime`, `hot`, `insights[]`, `prediction`
-3. Bot hiển thị preview với 3 nút: **Đổi HOT** / **Đăng lên Slide** / **Hủy**
-4. Nút Đổi HOT toggle `true/false` và cập nhật ngay preview
-5. Xác nhận → tạo document `matchInsight` trong Sanity → hiển thị trên `MatchInsights.astro`
+1. Gemini trích xuất JSON: `homeTeam`, `awayTeam`, `matchTime`, `hot`, `insights[]`, `prediction`
+2. Bot hiển thị preview với nút: **Đổi HOT** / **Đăng lên Slide** / **Hủy**
+3. Xác nhận → tạo `matchInsight` trong Sanity (lưu cả `matchDate = null`)
 
-**Format `matchTime`:**
-- Chỉ có ngày → `"22/03"`
-- Có cả giờ → `"21:00 - 22/03"`
+### Luồng 2 — BÀI VIẾT thủ công
+**Trigger:** text hoặc ảnh+caption không chứa INSIGHT
 
-### Luồng 2 — BÀI VIẾT (tin tức / phân tích)
-**Trigger:** tin nhắn text hoặc ảnh+caption KHÔNG chứa từ INSIGHT
+1. AI tự nhận diện giải đấu → field `league` khớp slug Sanity
+2. Gemini viết JSON: `title`, `excerpt`, `league`, `sections[]`
+3. Xác nhận → upload ảnh → tạo Portable Text → tạo `post`
 
-1. Gửi text hoặc ảnh kèm caption mô tả nội dung bài
-2. AI tự nhận diện giải đấu → trả về field `league` khớp slug trong Sanity
-3. Gemini viết bài JSON: `title`, `excerpt`, `league`, `sections[]` (heading + text)
-4. Bot hiển thị preview: tiêu đề, excerpt, giải đấu, số ảnh đính kèm
-5. Xác nhận → upload ảnh lên Sanity Assets → tạo Portable Text → tạo document `post`
-6. Ảnh đầu tiên = `mainImage`, ảnh 2+ chèn xen kẽ giữa các section
+### Luồng 3 — ALBUM ẢNH
+**Trigger:** gửi nhiều ảnh cùng lúc (media group)
 
-### Luồng 3 — ALBUM ẢNH (media group)
-**Trigger:** gửi nhiều ảnh cùng lúc (Telegram media group)
+- `setTimeout(1500ms)` đợi đủ ảnh → tránh race condition
+- Sau đó vào Luồng 1 hoặc 2 tuỳ caption
 
-- Dùng `setTimeout(1500ms)` đợi tất cả ảnh đến trước khi xử lý → tránh race condition
-- Caption trên bất kỳ ảnh nào trong album đều được nhận diện
-- Sau đó vào Luồng 1 hoặc 2 tuỳ nội dung caption
+### Luồng 4 — DAILY AUTO PREVIEW (tự động)
+**Trigger:** Cron 8:00 sáng giờ Việt Nam (chạy trên Railway)
+
+1. Gọi Football-Data.org API lấy lịch thi đấu hôm nay
+2. Lọc 6 giải: PL, CL, PD, BL1, SA, FL1 — tối đa 3 trận/giải
+3. Gọi API lấy BXH thực tế từng giải (hạng, điểm, W/D/L, phong độ 5 trận)
+4. Gemini tạo nhận định ngắn gọn dựa trên data thật
+5. Gửi từng trận về Telegram (chat ID owner) với nút:
+   - `🔄 Đổi HOT` — toggle, chưa đăng
+   - `✅ Đăng lên Slide` → tạo `matchInsight` (lưu `matchDate` = giờ UTC thực tế)
+   - `⏭ Bỏ qua`
+
+**Data thật từ API:** hạng BXH, điểm, W/D/L, phong độ 5 trận gần nhất
+**Data AI tạo:** lịch sử đối đầu, nhận định chiến thuật, dự đoán tỉ số
+
+### Auto Cleanup
+- **07:55 sáng** — xóa tự động tất cả `matchInsight` có `matchDate < (now - 3h)`
+- Insight thủ công (không có `matchDate`) → xóa tay qua `/list`
+- Sau khi xóa → gửi thông báo về Telegram
 
 ### Lệnh quản lý
 | Lệnh | Chức năng |
 |------|-----------|
-| `/list` | Xem 10 insight đang hiển thị, mỗi cái có nút 🗑 Xóa |
-| `/posts` | Xem 8 bài viết gần nhất kèm danh mục + ngày, có nút 🗑 Xóa |
-| `/reload` | Load lại danh mục từ Sanity (không cần restart bot) |
+| `/preview` | Nhận định trận hôm nay (kích hoạt thủ công) |
+| `/tomorrow` | Nhận định trận ngày mai |
+| `/list` | Xem & xóa 10 insight đang hiển thị |
+| `/posts` | Xem & xóa 8 bài viết gần nhất |
+| `/reload` | Tải lại danh mục từ Sanity |
 
 ### Ví dụ tin nhắn gửi lên bot
 
-**Luồng 1 — Insight:**
+**Luồng 1 — Insight thủ công:**
 ```
-INSIGHT Arsenal vs Chelsea, 21:00 ngày 23/03, trận HOT
+INSIGHT Arsenal vs Chelsea, 21:00 ngày 23/03
 - Arsenal thắng 8/10 trận sân nhà gần đây
 - Chelsea ghi bàn trong 6 trận liên tiếp
-- Havertz đang có phong độ tốt với 4 bàn/5 trận
 Dự đoán: Arsenal thắng 2-1
 ```
 
-**Luồng 2 — Bài viết tin tức (text thuần):**
+**Luồng 2 — Bài viết tin tức:**
 ```
 Man City thua sốc Bournemouth 1-2 tại Etihad. Haaland đá hỏng penalty phút 78.
-Pep Guardiola thừa nhận đây là kết quả đáng thất vọng khi Man City đang chạy đua
-vô địch với Arsenal chỉ còn kém 2 điểm.
 ```
 
-**Luồng 2 — Bài viết phân tích (ảnh + caption):**
+**Luồng 2 — Nhận định (ảnh + caption):**
 ```
 [Gửi kèm ảnh thống kê]
 Caption: Nhận định Real Madrid vs Barcelona El Clasico vòng 30 La Liga.
-Barca vào trận với phong độ bùng nổ 5 thắng liên tiếp, Lewandowski 12 bàn
-gần nhất. Real thiếu Vinicius Jr treo giò.
+Barca 5 thắng liên tiếp, Real thiếu Vinicius Jr treo giò.
 ```
 
-**Luồng 2 — Nhận định soi kèo:**
+---
+
+## Schemas Sanity (cập nhật)
+
+### MatchInsight
+- `homeTeam`, `awayTeam`, `matchTime` (string "HH:mm - DD/MM")
+- `matchDate` (datetime UTC) — dùng để auto-delete sau trận
+- `hot` (boolean), `insights[]`, `prediction`, `publishedAt`
+
+---
+
+## Deployment
+
+### Bot (`bot-press.js`) — Railway
+- **URL:** railway.app, project Bongda247
+- **Root Directory:** `web`
+- **Start Command:** `node bot-press.js` (cấu hình qua `nixpacks.toml`)
+- **Auto-deploy:** push GitHub → Railway tự redeploy
+- **Chi phí:** ~$0.50–1/tháng (nằm trong $5 free credit)
+
+### Environment Variables trên Railway
 ```
-Soi kèo Bayern Munich vs Dortmund Bundesliga 22/03. Bayern thua 2 trận
-gần nhất trên sân khách. Dortmund mạnh ở hiệp 2 với 70% bàn thắng sau
-phút 60. Kèo chấp 0.5 nghiêng về Dortmund.
+TELEGRAM_BOT_TOKEN
+TELEGRAM_OWNER_CHAT_ID=2050679271
+GEMINI_API_KEY
+SANITY_PROJECT_ID=wwpnye2x
+SANITY_DATASET=production
+SANITY_API_TOKEN
+PUBLIC_FOOTBALL_DATA_KEY
 ```
