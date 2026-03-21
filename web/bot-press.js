@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+// import Anthropic from "@anthropic-ai/sdk"; // TODO: chuyển sang Claude API sau
 import { createClient } from "@sanity/client";
 import axios from "axios";
 import cron from "node-cron";
@@ -31,7 +32,7 @@ const sanity = createClient({
 });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 // Chat ID nhận bản nháp hàng ngày — set TELEGRAM_OWNER_CHAT_ID trong .env

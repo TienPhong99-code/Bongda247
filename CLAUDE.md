@@ -1,5 +1,15 @@
 # CLAUDE.md — Bongda247 Project
 
+## Quy tắc bắt buộc
+
+Sau mỗi thay đổi đáng kể (thêm tính năng, đổi API, đổi cấu trúc, đổi env vars, đổi luồng xử lý):
+1. **Cập nhật CLAUDE.md** — phần liên quan (tích hợp, env vars, luồng hoạt động, v.v.)
+2. **Cập nhật memory** — các file trong `.claude/projects/.../memory/` tương ứng (bot_architecture.md, deployment.md, v.v.)
+
+Không cần người dùng nhắc — tự động làm sau khi hoàn thành task.
+
+---
+
 ## Tổng quan dự án
 
 Website tin tức và phân tích bóng đá bằng AI, viết bằng **tiếng Việt**, tập trung vào các giải đấu lớn (Ngoại hạng Anh, Champions League, La Liga, Bundesliga, Serie A, Ligue 1).
