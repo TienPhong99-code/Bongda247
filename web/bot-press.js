@@ -38,20 +38,32 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const OWNER_CHAT_ID = process.env.TELEGRAM_OWNER_CHAT_ID;
 
 // ============================================================
-// 2. FOOTBALL-DATA.ORG — Lấy lịch thi đấu
+// 2. API-FOOTBALL.COM — Lấy lịch thi đấu
 // ============================================================
 
-const FD_BASE = "https://api.football-data.org/v4";
+const AF_BASE = "https://v3.football.api-sports.io";
+const AF_HEADERS = { "x-apisports-key": process.env.API_FOOTBALL_KEY };
 
-// Map mã giải Football-Data.org → Sanity slug + thông tin hiển thị
+// Map mã giải → Sanity slug + thông tin hiển thị + ID API-Football
 const LEAGUE_MAP = {
-  PL:  { slug: "ngoai-hang-anh",   name: "Ngoại hạng Anh",  flag: "󠁧󠁢󠁥󠁮󠁧󠁿🏴" },
-  CL:  { slug: "champions-league", name: "Champions League", flag: "⭐" },
-  PD:  { slug: "la-liga",          name: "La Liga",          flag: "🇪🇸" },
-  BL1: { slug: "bundesliga",       name: "Bundesliga",       flag: "🇩🇪" },
-  SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹" },
-  FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷" },
+  PL:  { slug: "ngoai-hang-anh",   name: "Ngoại hạng Anh",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", apiId: 39  },
+  CL:  { slug: "champions-league", name: "Champions League", flag: "⭐",          apiId: 2   },
+  PD:  { slug: "la-liga",          name: "La Liga",          flag: "🇪🇸",         apiId: 140 },
+  BL1: { slug: "bundesliga",       name: "Bundesliga",       flag: "🇩🇪",         apiId: 78  },
+  SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹",         apiId: 135 },
+  FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷",         apiId: 61  },
 };
+
+// Reverse map: API-Football league ID → mã giải
+const LEAGUE_ID_TO_CODE = Object.fromEntries(
+  Object.entries(LEAGUE_MAP).map(([code, info]) => [info.apiId, code])
+);
+
+// Lấy season hiện tại (tháng 8+ = năm hiện tại, còn lại = năm trước)
+function getCurrentSeason() {
+  const now = new Date();
+  return now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+}
 
 // Chuyển utcDate → "HH:mm - DD/MM" (múi giờ Việt Nam)
 function formatMatchTime(utcDateStr) {
@@ -77,40 +89,73 @@ function formatMatchTime(utcDateStr) {
 }
 
 async function fetchMatchesForDate(dateStr) {
-  const res = await axios.get(`${FD_BASE}/matches`, {
-    headers: { "X-Auth-Token": process.env.PUBLIC_FOOTBALL_DATA_KEY },
-    params: { dateFrom: dateStr, dateTo: dateStr },
+  const res = await axios.get(`${AF_BASE}/fixtures`, {
+    headers: AF_HEADERS,
+    params: { date: dateStr },
     timeout: 10000,
   });
-  return res.data.matches ?? [];
+  // Normalize sang cấu trúc thống nhất dùng chung trong bot
+  return (res.data.response ?? [])
+    .map((item) => ({
+      homeTeam: { id: item.teams.home.id, name: item.teams.home.name },
+      awayTeam: { id: item.teams.away.id, name: item.teams.away.name },
+      utcDate: item.fixture.date,
+      competition: { code: LEAGUE_ID_TO_CODE[item.league.id] },
+    }))
+    .filter((m) => m.competition.code); // bỏ giải không theo dõi
 }
 
-// Lấy bảng xếp hạng thực tế từ API → { teamId: { position, points, form, won, draw, lost, gf, ga } }
+// Lấy bảng xếp hạng thực tế → { teamId: { position, points, form, won, draw, lost, gf, ga } }
 async function fetchStandings(leagueCode) {
   try {
-    const res = await axios.get(`${FD_BASE}/competitions/${leagueCode}/standings`, {
-      headers: { "X-Auth-Token": process.env.PUBLIC_FOOTBALL_DATA_KEY },
+    const leagueId = LEAGUE_MAP[leagueCode]?.apiId;
+    if (!leagueId) return {};
+    const res = await axios.get(`${AF_BASE}/standings`, {
+      headers: AF_HEADERS,
+      params: { league: leagueId, season: getCurrentSeason() },
       timeout: 10000,
     });
-    const table = res.data.standings?.[0]?.table ?? [];
+    const table = res.data.response?.[0]?.league?.standings?.[0] ?? [];
     const lookup = {};
     for (const row of table) {
       lookup[row.team.id] = {
         name: row.team.name,
-        position: row.position,
+        position: row.rank,
         points: row.points,
-        played: row.playedGames,
-        won: row.won,
-        draw: row.draw,
-        lost: row.lost,
-        form: row.form ?? "N/A",      // chuỗi 5 ký tự W/D/L
-        goalsFor: row.goalsFor,
-        goalsAgainst: row.goalsAgainst,
+        played: row.all.played,
+        won: row.all.win,
+        draw: row.all.draw,
+        lost: row.all.lose,
+        form: row.form ?? "N/A",
+        goalsFor: row.all.goals.for,
+        goalsAgainst: row.all.goals.against,
       };
     }
     return lookup;
   } catch {
     return {}; // CL knockout / lỗi → fallback về AI tự phân tích
+  }
+}
+
+// Lấy lịch sử đối đầu 5 trận gần nhất → chuỗi tóm tắt hoặc null nếu lỗi
+async function fetchHeadToHead(homeId, awayId) {
+  try {
+    const res = await axios.get(`${AF_BASE}/fixtures/headtohead`, {
+      headers: AF_HEADERS,
+      params: { h2h: `${homeId}-${awayId}`, last: 5 },
+      timeout: 10000,
+    });
+    const fixtures = res.data.response ?? [];
+    if (!fixtures.length) return null;
+    return fixtures
+      .map((f) => {
+        const gh = f.goals.home ?? 0;
+        const ga = f.goals.away ?? 0;
+        return `${f.teams.home.name} ${gh}-${ga} ${f.teams.away.name}`;
+      })
+      .join(", ");
+  } catch {
+    return null;
   }
 }
 
@@ -257,7 +302,8 @@ function delay(ms) {
 // ============================================================
 
 // standings: object từ fetchStandings (có thể rỗng nếu CL knockout / lỗi API)
-async function generateDraftForMatch(match, standings = {}) {
+// h2h: chuỗi tóm tắt 5 trận đối đầu gần nhất hoặc null
+async function generateDraftForMatch(match, standings = {}, h2h = null) {
   const leagueInfo = LEAGUE_MAP[match.leagueCode];
   const homeTeam = match.homeTeam?.name ?? "Đội nhà";
   const awayTeam = match.awayTeam?.name ?? "Đội khách";
@@ -275,7 +321,8 @@ async function generateDraftForMatch(match, standings = {}) {
   const dataContext = `
 DỮ LIỆU THỰC TẾ MÙA NÀY (lấy từ API, ưu tiên dùng):
 - ${formatStats(homeStats, homeTeam)}
-- ${formatStats(awayStats, awayTeam)}`;
+- ${formatStats(awayStats, awayTeam)}
+- Đối đầu 5 trận gần nhất: ${h2h ?? "không có dữ liệu (dùng kiến thức của bạn)"}`;
 
   const prompt = `
 Bạn là chuyên gia phân tích bóng đá tiếng Việt. CHỈ viết insights NGẮN GỌN (tối đa 15 từ/dòng), KHÔNG viết đoạn văn dài.
@@ -373,7 +420,7 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
   const standingsMap = {}; // leagueCode → { teamId: stats }
   for (const code of Object.keys(byLeague)) {
     standingsMap[code] = await fetchStandings(code);
-    await delay(6000); // giữ trong giới hạn 10 req/phút của free tier
+    await delay(2000);
   }
 
   // Xử lý từng giải
@@ -382,7 +429,9 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
 
     for (const match of leagueMatches) {
       try {
-        const draft = await generateDraftForMatch(match, standingsMap[code]);
+        const h2h = await fetchHeadToHead(match.homeTeam?.id, match.awayTeam?.id);
+        await delay(2000);
+        const draft = await generateDraftForMatch(match, standingsMap[code], h2h);
         const draftId = `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         draftStore.set(draftId, draft);
 
