@@ -111,7 +111,7 @@ cms/
 | Service | Mục đích |
 |---------|----------|
 | Sanity.io | CMS — Lưu bài viết, danh mục, nhận định trận |
-| Football-Data.org | Real-time match data, standings, lịch thi đấu |
+| API-Football (api-football.com) | Real-time match data, standings, H2H, team fixtures |
 | Google Gemini 2.5 Flash | AI tạo phân tích và dự đoán trận đấu |
 | Telegram Bot | Phân phối nội dung tự động |
 | Google AdSense | Quảng cáo |
@@ -126,7 +126,7 @@ cms/
 ```
 PUBLIC_SANITY_PROJECT_ID=wwpnye2x
 PUBLIC_SANITY_DATASET=production
-PUBLIC_FOOTBALL_DATA_KEY=<api_key>
+PUBLIC_FOOTBALL_DATA_KEY=<api_key>  # dùng cho live-scores frontend
 ```
 
 ### Bot (`bot-press.js`)
@@ -234,17 +234,19 @@ node bot-press.js
 ### Luồng 4 — DAILY AUTO PREVIEW (tự động)
 **Trigger:** Cron 8:00 sáng giờ Việt Nam (chạy trên Railway)
 
-1. Gọi Football-Data.org API lấy lịch thi đấu hôm nay
+1. Gọi API-Football lấy lịch thi đấu hôm nay
 2. Lọc 6 giải: PL, CL, PD, BL1, SA, FL1 — tối đa 3 trận/giải
 3. Gọi API lấy BXH thực tế từng giải (hạng, điểm, W/D/L, phong độ 5 trận)
-4. Gemini tạo nhận định ngắn gọn dựa trên data thật
+4. Gọi API lấy H2H (10 trận) + form đội nhà (10 trận) + form đội khách (10 trận)
+5. Tính Over 2.5, BTTS, clean sheet theo sân nhà/sân khách/tổng
+6. Gemini tạo nhận định với số liệu thực (VD: "BTTS sân khách - 4/5 trận cuối")
 5. Gửi từng trận về Telegram (chat ID owner) với nút:
    - `🔄 Đổi HOT` — toggle, chưa đăng
    - `✅ Đăng lên Slide` → tạo `matchInsight` (lưu `matchDate` = giờ UTC thực tế)
    - `⏭ Bỏ qua`
 
-**Data thật từ API:** hạng BXH, điểm, W/D/L, phong độ 5 trận gần nhất
-**Data AI tạo:** lịch sử đối đầu, nhận định chiến thuật, dự đoán tỉ số
+**Data thật từ API:** hạng BXH, điểm, W/D/L, form, H2H 10 trận, Over 2.5 / BTTS / clean sheet theo sân
+**Data AI tạo:** nhận định chiến thuật, dự đoán tỉ số
 
 ### Auto Cleanup
 - **07:55 sáng** — xóa tự động tất cả `matchInsight` có `matchDate < (now - 3h)`

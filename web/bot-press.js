@@ -137,26 +137,80 @@ async function fetchStandings(leagueCode) {
   }
 }
 
-// Lấy lịch sử đối đầu 5 trận gần nhất → chuỗi tóm tắt hoặc null nếu lỗi
+// Lấy lịch sử đối đầu 10 trận gần nhất → raw fixtures array
 async function fetchHeadToHead(homeId, awayId) {
   try {
     const res = await axios.get(`${AF_BASE}/fixtures/headtohead`, {
       headers: AF_HEADERS,
-      params: { h2h: `${homeId}-${awayId}`, last: 5 },
+      params: { h2h: `${homeId}-${awayId}`, last: 10 },
       timeout: 10000,
     });
-    const fixtures = res.data.response ?? [];
-    if (!fixtures.length) return null;
-    return fixtures
-      .map((f) => {
-        const gh = f.goals.home ?? 0;
-        const ga = f.goals.away ?? 0;
-        return `${f.teams.home.name} ${gh}-${ga} ${f.teams.away.name}`;
-      })
-      .join(", ");
+    return res.data.response ?? [];
   } catch {
-    return null;
+    return [];
   }
+}
+
+// Lấy 10 trận gần nhất của một đội
+async function fetchTeamFixtures(teamId) {
+  try {
+    const res = await axios.get(`${AF_BASE}/fixtures`, {
+      headers: AF_HEADERS,
+      params: { team: teamId, last: 10, season: getCurrentSeason() },
+      timeout: 10000,
+    });
+    return res.data.response ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Tính stats từ danh sách fixture của một đội
+// teamId dùng để xác định đội đang xét là home hay away trong từng trận
+function computeTeamStats(fixtures, teamId) {
+  const homeGames = fixtures.filter((f) => f.teams.home.id === teamId);
+  const awayGames = fixtures.filter((f) => f.teams.away.id === teamId);
+
+  const calc = (games) => {
+    const n = games.length;
+    if (!n) return null;
+    const over25 = games.filter((g) => (g.goals.home ?? 0) + (g.goals.away ?? 0) > 2.5).length;
+    const btts   = games.filter((g) => (g.goals.home ?? 0) > 0 && (g.goals.away ?? 0) > 0).length;
+    const cs     = games.filter((g) => {
+      const isHome = g.teams.home.id === teamId;
+      return isHome ? (g.goals.away ?? 0) === 0 : (g.goals.home ?? 0) === 0;
+    }).length;
+    return { n, over25, btts, cs };
+  };
+
+  return { home: calc(homeGames), away: calc(awayGames), all: calc(fixtures) };
+}
+
+// Tính stats từ các trận H2H
+function computeH2HStats(fixtures) {
+  const n = fixtures.length;
+  if (!n) return null;
+  const over25 = fixtures.filter((f) => (f.goals.home ?? 0) + (f.goals.away ?? 0) > 2.5).length;
+  const btts   = fixtures.filter((f) => (f.goals.home ?? 0) > 0 && (f.goals.away ?? 0) > 0).length;
+  return { n, over25, btts };
+}
+
+// Format stats thành chuỗi ngắn gọn cho prompt
+function formatTeamStatsForPrompt(stats, teamName, isHomeTeam) {
+  if (!stats) return `${teamName}: không có dữ liệu form`;
+  const lines = [];
+  const venue = isHomeTeam ? stats.home : stats.away;
+  const all   = stats.all;
+
+  if (venue?.n >= 3) {
+    lines.push(`${isHomeTeam ? "Sân nhà" : "Sân khách"} (${venue.n} trận): Over 2.5: ${venue.over25}/${venue.n}, BTTS: ${venue.btts}/${venue.n}, Sạch lưới: ${venue.cs}/${venue.n}`);
+  }
+  if (all?.n >= 5) {
+    lines.push(`Tổng (${all.n} trận): Over 2.5: ${all.over25}/${all.n}, BTTS: ${all.btts}/${all.n}`);
+  }
+  return lines.length
+    ? `${teamName}: ${lines.join(" | ")}`
+    : `${teamName}: không đủ dữ liệu`;
 }
 
 // Lọc các giải hỗ trợ, tối đa 3 trận/giải
@@ -220,13 +274,18 @@ function parseAIJson(text) {
   );
 }
 
+// Escape ký tự đặc biệt Markdown V1 trong nội dung động (AI có thể tạo ra)
+function escapeMd(text) {
+  return String(text ?? "").replace(/[*_`[]/g, "\\$&");
+}
+
 function buildInsightText(data) {
   const hotStatus = data.hot ? "🔥 CÓ" : "❄️ KHÔNG";
   return (
-    `🏟 *${data.homeTeam}* vs *${data.awayTeam}*\n` +
-    `⏰ ${data.matchTime}  •  🔥 HOT: ${hotStatus}\n\n` +
-    `📊 *Nhận định:*\n${data.insights.map((i) => `• ${i}`).join("\n")}\n\n` +
-    `🎯 *Dự đoán:* ${data.prediction}`
+    `🏟 *${escapeMd(data.homeTeam)}* vs *${escapeMd(data.awayTeam)}*\n` +
+    `⏰ ${escapeMd(data.matchTime)}  •  🔥 HOT: ${hotStatus}\n\n` +
+    `📊 *Nhận định:*\n${data.insights.map((i) => `• ${escapeMd(i)}`).join("\n")}\n\n` +
+    `🎯 *Dự đoán:* ${escapeMd(data.prediction)}`
   );
 }
 
@@ -301,33 +360,56 @@ function delay(ms) {
 // 6. AI — TẠO NHẬN ĐỊNH CHO MỘT TRẬN
 // ============================================================
 
-// standings: object từ fetchStandings (có thể rỗng nếu CL knockout / lỗi API)
-// h2h: chuỗi tóm tắt 5 trận đối đầu gần nhất hoặc null
-async function generateDraftForMatch(match, standings = {}, h2h = null) {
+// standings: object từ fetchStandings
+// h2hFixtures: raw array từ fetchHeadToHead
+// homeFixtures/awayFixtures: raw array từ fetchTeamFixtures
+async function generateDraftForMatch(match, standings = {}, h2hFixtures = [], homeFixtures = [], awayFixtures = []) {
   const leagueInfo = LEAGUE_MAP[match.leagueCode];
   const homeTeam = match.homeTeam?.name ?? "Đội nhà";
   const awayTeam = match.awayTeam?.name ?? "Đội khách";
   const matchTime = formatMatchTime(match.utcDate);
 
-  const homeStats = standings[match.homeTeam?.id];
-  const awayStats = standings[match.awayTeam?.id];
-
-  // Chuyển stats thành chuỗi ngắn gọn để đưa vào prompt
-  const formatStats = (s, name) =>
+  // BXH
+  const homeStanding = standings[match.homeTeam?.id];
+  const awayStanding = standings[match.awayTeam?.id];
+  const formatStanding = (s, name) =>
     s
-      ? `${name}: Hạng ${s.position}, ${s.points} điểm (${s.won}W-${s.draw}D-${s.lost}L), phong độ 5 trận: ${s.form}, ${s.goalsFor} bàn thắng/${s.goalsAgainst} bàn thua`
-      : `${name}: không có dữ liệu BXH (dùng kiến thức của bạn)`;
+      ? `${name}: Hạng ${s.position}, ${s.points}đ (${s.won}W-${s.draw}D-${s.lost}L), form: ${s.form}`
+      : `${name}: không có dữ liệu BXH`;
+
+  // Form stats từ fixture gần nhất
+  const homeTeamStats = computeTeamStats(homeFixtures, match.homeTeam?.id);
+  const awayTeamStats = computeTeamStats(awayFixtures, match.awayTeam?.id);
+  const h2hStats = computeH2HStats(h2hFixtures);
+
+  // Tóm tắt H2H 5 trận gần nhất dạng text
+  const h2hSummary = h2hFixtures.slice(0, 5)
+    .map((f) => `${f.teams.home.name} ${f.goals.home ?? 0}-${f.goals.away ?? 0} ${f.teams.away.name}`)
+    .join(", ") || "không có dữ liệu";
 
   const dataContext = `
-DỮ LIỆU THỰC TẾ MÙA NÀY (lấy từ API, ưu tiên dùng):
-- ${formatStats(homeStats, homeTeam)}
-- ${formatStats(awayStats, awayTeam)}
-- Đối đầu 5 trận gần nhất: ${h2h ?? "không có dữ liệu (dùng kiến thức của bạn)"}`;
+DỮ LIỆU THỰC TẾ (ưu tiên dùng số liệu này, KHÔNG bịa):
+BXH:
+- ${formatStanding(homeStanding, homeTeam)}
+- ${formatStanding(awayStanding, awayTeam)}
+
+Form gần đây:
+- ${formatTeamStatsForPrompt(homeTeamStats, homeTeam, true)}
+- ${formatTeamStatsForPrompt(awayTeamStats, awayTeam, false)}
+
+H2H (${h2hFixtures.length} trận): ${h2hSummary}
+H2H stats: Over 2.5: ${h2hStats ? `${h2hStats.over25}/${h2hStats.n}` : "N/A"}, BTTS: ${h2hStats ? `${h2hStats.btts}/${h2hStats.n}` : "N/A"}`;
 
   const prompt = `
-Bạn là chuyên gia phân tích bóng đá tiếng Việt. CHỈ viết insights NGẮN GỌN (tối đa 15 từ/dòng), KHÔNG viết đoạn văn dài.
+Bạn là chuyên gia phân tích bóng đá tiếng Việt. Viết insights NGẮN GỌN, SỬ DỤNG SỐ LIỆU THỰC TẾ từ dữ liệu bên dưới.
 Trận: ${homeTeam} vs ${awayTeam} | ${leagueInfo.name} | ${matchTime}
 ${dataContext}
+
+Ví dụ insight tốt (dùng số liệu thực):
+- "🏠 ${homeTeam}: Over 2.5 sân nhà - X/Y trận cuối"
+- "✈️ ${awayTeam}: BTTS sân khách - X/Y trận cuối"
+- "⚔️ H2H: BTTS - X/Y trận gần nhất"
+- "🔑 [yếu tố then chốt dựa trên data]"
 
 Trả về DUY NHẤT JSON hợp lệ:
 {
@@ -336,10 +418,10 @@ Trả về DUY NHẤT JSON hợp lệ:
   "matchTime": "${matchTime}",
   "hot": false,
   "insights": [
-    "🏠 Đội nhà: [hạng + điểm + phong độ thực tế, tối đa 12 từ]",
-    "✈️ Đội khách: [hạng + điểm + phong độ thực tế, tối đa 12 từ]",
-    "⚔️ Đối đầu: [lịch sử gần nhất, tối đa 12 từ]",
-    "🔑 Yếu tố: [1 yếu tố quyết định, tối đa 12 từ]"
+    "🏠 [insight đội nhà với số liệu thực, tối đa 12 từ]",
+    "✈️ [insight đội khách với số liệu thực, tối đa 12 từ]",
+    "⚔️ [insight H2H với số liệu thực, tối đa 12 từ]",
+    "🔑 [yếu tố quyết định, tối đa 12 từ]"
   ],
   "prediction": "Tỉ số dự đoán + lý do ngắn (tối đa 10 từ)"
 }`;
@@ -369,7 +451,8 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
 
   const target = new Date();
   target.setDate(target.getDate() + dateOffset);
-  const dateStr = target.toISOString().split("T")[0]; // YYYY-MM-DD
+  // Dùng sv-SE locale để lấy YYYY-MM-DD theo giờ Việt Nam (tránh lệch ngày UTC)
+  const dateStr = target.toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
   const dateVN = target.toLocaleDateString("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
   });
@@ -429,9 +512,13 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
 
     for (const match of leagueMatches) {
       try {
-        const h2h = await fetchHeadToHead(match.homeTeam?.id, match.awayTeam?.id);
+        const h2hFixtures   = await fetchHeadToHead(match.homeTeam?.id, match.awayTeam?.id);
         await delay(2000);
-        const draft = await generateDraftForMatch(match, standingsMap[code], h2h);
+        const homeFixtures  = await fetchTeamFixtures(match.homeTeam?.id);
+        await delay(2000);
+        const awayFixtures  = await fetchTeamFixtures(match.awayTeam?.id);
+        await delay(2000);
+        const draft = await generateDraftForMatch(match, standingsMap[code], h2hFixtures, homeFixtures, awayFixtures);
         const draftId = `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         draftStore.set(draftId, draft);
 
