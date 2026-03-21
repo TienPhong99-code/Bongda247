@@ -10,6 +10,12 @@ export default {
     {name: 'hot', title: 'Trận hot', type: 'boolean', initialValue: false},
     {name: 'insights', title: 'Các dòng thống kê', type: 'array', of: [{type: 'string'}]},
     {name: 'prediction', title: 'Dự đoán', type: 'string'},
+    {
+      name: 'matchDate',
+      title: 'Thời gian thi đấu (UTC)',
+      type: 'datetime',
+      description: 'Giờ thi đấu thực tế — dùng để tự động xóa sau khi trận kết thúc',
+    },
     {name: 'publishedAt', title: 'Ngày đăng', type: 'datetime'},
   ],
 }

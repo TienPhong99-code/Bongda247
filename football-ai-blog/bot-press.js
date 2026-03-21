@@ -1,12 +1,17 @@
 import "dotenv/config";
 import { Telegraf } from "telegraf";
+import { message } from "telegraf/filters";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@sanity/client";
 import axios from "axios";
+import cron from "node-cron";
 
-// --- HÀM TẠO SLUG CHUẨN SEO ---
-const createSlug = (text) => {
-  return text
+// ============================================================
+// 1. KHỞI TẠO
+// ============================================================
+
+const createSlug = (text) =>
+  text
     .toString()
     .toLowerCase()
     .normalize("NFD")
@@ -16,9 +21,7 @@ const createSlug = (text) => {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
-};
 
-// 1. Cấu hình Sanity
 const sanity = createClient({
   projectId: process.env.SANITY_PROJECT_ID,
   dataset: process.env.SANITY_DATASET || "production",
@@ -27,314 +30,878 @@ const sanity = createClient({
   apiVersion: "2024-03-03",
 });
 
-// 2. Cấu hình Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash", // Bản flash ổn định và nhanh nhất hiện tại
-});
-
-// 3. Cấu hình Telegram Bot
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
-// 4. Danh mục ID
-const CATEGORIES = {
-  "ngoai-hang-anh": "33d05981-5ddb-4c87-8341-c263b7b8528d",
-  "la-liga": "dc88df2c-e409-430f-8561-190103819a78",
-  "nhan-dinh": "adfa7fef-4ad5-4ee0-a0d6-14ba645d672d",
+// Chat ID nhận bản nháp hàng ngày — set TELEGRAM_OWNER_CHAT_ID trong .env
+const OWNER_CHAT_ID = process.env.TELEGRAM_OWNER_CHAT_ID;
+
+// ============================================================
+// 2. FOOTBALL-DATA.ORG — Lấy lịch thi đấu
+// ============================================================
+
+const FD_BASE = "https://api.football-data.org/v4";
+
+// Map mã giải Football-Data.org → Sanity slug + thông tin hiển thị
+const LEAGUE_MAP = {
+  PL:  { slug: "ngoai-hang-anh",   name: "Ngoại hạng Anh",  flag: "󠁧󠁢󠁥󠁮󠁧󠁿🏴" },
+  CL:  { slug: "champions-league", name: "Champions League", flag: "⭐" },
+  PD:  { slug: "la-liga",          name: "La Liga",          flag: "🇪🇸" },
+  BL1: { slug: "bundesliga",       name: "Bundesliga",       flag: "🇩🇪" },
+  SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹" },
+  FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷" },
 };
 
-const mediaGroupStorage = new Map();
-const pendingPosts = new Map();
-
-bot.start((ctx) =>
-  ctx.reply(
-    "⚽ Chào Văn! Gửi 'insight + nội dung' hoặc Album ảnh + Caption để soạn bài.",
-  ),
-);
-
-// --- LUỒNG XỬ LÝ TIN NHẮN ĐẾN ---
-bot.on(["photo", "text"], async (ctx) => {
-  const chatId = ctx.chat.id;
-  const message = ctx.message;
-  const now = new Date();
-  const currentDateStr = now.toLocaleDateString("vi-VN");
-
-  // Xử lý Album ảnh
-  if (message.media_group_id) {
-    if (!mediaGroupStorage.has(message.media_group_id)) {
-      mediaGroupStorage.set(message.media_group_id, []);
-    }
-    const photos = mediaGroupStorage.get(message.media_group_id);
-    photos.push(message.photo[message.photo.length - 1].file_id);
-    if (!message.caption) return;
-  }
-
-  const rawText = message.caption || message.text;
-  if (!rawText) return;
-
-  // --- LUỒNG 1: XỬ LÝ SỐ LIỆU CHUYÊN SÂU (INSIGHT) ---
-  if (rawText.toUpperCase().includes("INSIGHT")) {
-    ctx.reply("📊 Đang trích xuất số liệu...");
-    try {
-      const prompt = `
-  Bạn là chuyên gia bóng đá. Hôm nay là ngày: ${currentDateStr}.
-  Nhiệm vụ: Trích xuất thông tin từ nội dung sau: "${rawText}"
-
-  Yêu cầu về "matchTime":
-  - Nếu nội dung CHỈ CÓ NGÀY (vd: 15/03) và KHÔNG CÓ GIỜ cụ thể, hãy trả về: "DD/MM" (Ví dụ: "15/03").
-  - Nếu nội dung CÓ CẢ GIỜ (vd: 22:00 ngày 15/03), hãy trả về: "HH:mm - DD/MM" (Ví dụ: "22:00 - 15/03").
-  
-  Trả về DUY NHẤT định dạng JSON: { "homeTeam", "awayTeam", "matchTime", "hot", "insights": [], "prediction" }
-`;
-
-      const result = await model.generateContent(prompt);
-      const cleanJson = result.response
-        .text()
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-      const insightData = JSON.parse(cleanJson);
-
-      // Lưu tạm vào Map
-      pendingPosts.set(chatId, { ...insightData, type: "matchInsight" });
-
-      const hotStatus = "❄️ KHÔNG";
-
-      // QUAN TRỌNG: Dùng return để không chạy xuống Luồng 2 bên dưới
-      return ctx.reply(
-        `🔍 **XÁC NHẬN INSIGHT**\n------------------\n🏟 ${insightData.homeTeam} VS ${insightData.awayTeam}\n⏰ ${insightData.matchTime}\n🔥 Trận HOT: ${hotStatus}\n\n📊 **Số liệu:**\n${insightData.insights.join("\n")}`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: `Đổi trạng thái HOT (Hiện: ${hotStatus})`,
-                  callback_data: "toggle_hot",
-                },
-              ],
-              [{ text: "🚀 Đăng lên Slide", callback_data: "confirm_insight" }],
-              [{ text: "❌ Hủy", callback_data: "cancel_post" }],
-            ],
-          },
-        },
-      );
-    } catch (e) {
-      console.error(e);
-      return ctx.reply("❌ Lỗi xử lý Insight.");
-    }
-  }
-
-  // --- LUỒNG 2: XỬ LÝ BÀI VIẾT THÔNG THƯỜNG ---
-  ctx.reply("⏳ AI đang soạn bài viết...");
-  try {
-    const lowerText = rawText.toLowerCase();
-    let selectedCat = CATEGORIES["ngoai-hang-anh"];
-    let label = "Ngoại hạng Anh";
-
-    if (lowerText.match(/nhận định|soi kèo|dự đoán|tỷ lệ/)) {
-      selectedCat = CATEGORIES["nhan-dinh"];
-      label = "Nhận định bóng đá";
-    } else if (lowerText.match(/la liga|tây ban nha/)) {
-      selectedCat = CATEGORIES["la-liga"];
-      label = "Tây Ban Nha";
-    }
-
-    const prompt = `Viết bài báo JSON chuẩn SEO từ: "${rawText}"...`; // Prompt rút gọn của bạn
-
-    const result = await model.generateContent(prompt);
-    const cleanJson = result.response
-      .text()
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-    const data = JSON.parse(cleanJson);
-
-    let currentPhotos = message.media_group_id
-      ? [...(mediaGroupStorage.get(message.media_group_id) || [])]
-      : message.photo
-        ? [message.photo[message.photo.length - 1].file_id]
-        : [];
-
-    pendingPosts.set(chatId, {
-      ...data,
-      categoryId: selectedCat,
-      photos: currentPhotos,
-      type: "post",
+// Chuyển utcDate → "HH:mm - DD/MM" (múi giờ Việt Nam)
+function formatMatchTime(utcDateStr) {
+  const date = new Date(utcDateStr);
+  // Nếu giờ/phút UTC đều là 0 → thường là TBD, chỉ hiển thị ngày
+  if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0) {
+    return date.toLocaleDateString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      day: "2-digit",
+      month: "2-digit",
     });
+  }
+  const parts = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (t) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${get("hour")}:${get("minute")} - ${get("day")}/${get("month")}`;
+}
 
-    ctx.reply(`🔍 **XEM TRƯỚC: ${data.title}**`, {
+async function fetchMatchesForDate(dateStr) {
+  const res = await axios.get(`${FD_BASE}/matches`, {
+    headers: { "X-Auth-Token": process.env.PUBLIC_FOOTBALL_DATA_KEY },
+    params: { dateFrom: dateStr, dateTo: dateStr },
+    timeout: 10000,
+  });
+  return res.data.matches ?? [];
+}
+
+// Lấy bảng xếp hạng thực tế từ API → { teamId: { position, points, form, won, draw, lost, gf, ga } }
+async function fetchStandings(leagueCode) {
+  try {
+    const res = await axios.get(`${FD_BASE}/competitions/${leagueCode}/standings`, {
+      headers: { "X-Auth-Token": process.env.PUBLIC_FOOTBALL_DATA_KEY },
+      timeout: 10000,
+    });
+    const table = res.data.standings?.[0]?.table ?? [];
+    const lookup = {};
+    for (const row of table) {
+      lookup[row.team.id] = {
+        name: row.team.name,
+        position: row.position,
+        points: row.points,
+        played: row.playedGames,
+        won: row.won,
+        draw: row.draw,
+        lost: row.lost,
+        form: row.form ?? "N/A",      // chuỗi 5 ký tự W/D/L
+        goalsFor: row.goalsFor,
+        goalsAgainst: row.goalsAgainst,
+      };
+    }
+    return lookup;
+  } catch {
+    return {}; // CL knockout / lỗi → fallback về AI tự phân tích
+  }
+}
+
+// Lọc các giải hỗ trợ, tối đa 3 trận/giải
+function selectMatches(matches) {
+  const grouped = {};
+  for (const match of matches) {
+    const code = match.competition?.code;
+    if (!LEAGUE_MAP[code]) continue;
+    if (!grouped[code]) grouped[code] = [];
+    if (grouped[code].length < 3) grouped[code].push(match);
+  }
+  return Object.entries(grouped).flatMap(([code, list]) =>
+    list.map((m) => ({ ...m, leagueCode: code }))
+  );
+}
+
+// ============================================================
+// 3. DYNAMIC CATEGORIES — tải từ Sanity, không hardcode ID
+// ============================================================
+
+let CATEGORIES = {};
+
+async function loadCategories() {
+  try {
+    const cats = await sanity.fetch(
+      `*[_type == "category"]{ _id, "slug": slug.current, title }`
+    );
+    CATEGORIES = {};
+    cats.forEach((c) => {
+      CATEGORIES[c.slug] = { id: c._id, title: c.title };
+    });
+    console.log(
+      `✅ Đã tải ${Object.keys(CATEGORIES).length} danh mục:`,
+      Object.keys(CATEGORIES).join(", ")
+    );
+  } catch (e) {
+    console.error("❌ Không tải được danh mục:", e.message);
+  }
+}
+
+function getCategoryId(slug) {
+  return CATEGORIES[slug]?.id ?? Object.values(CATEGORIES)[0]?.id ?? null;
+}
+
+// ============================================================
+// 4. BỘ NHỚ TẠM
+// ============================================================
+
+const mediaGroupStorage = new Map(); // groupId → { photos: [], caption: null }
+const mediaGroupTimers = new Map();  // groupId → timer
+const pendingPosts = new Map();      // chatId → post đang chờ xác nhận
+const draftStore = new Map();        // draftId → bản nháp nhận định từ AI
+
+// ============================================================
+// 5. HELPER FUNCTIONS
+// ============================================================
+
+function parseAIJson(text) {
+  return JSON.parse(
+    text.replace(/```json/gi, "").replace(/```/g, "").trim()
+  );
+}
+
+function buildInsightText(data) {
+  const hotStatus = data.hot ? "🔥 CÓ" : "❄️ KHÔNG";
+  return (
+    `🏟 *${data.homeTeam}* vs *${data.awayTeam}*\n` +
+    `⏰ ${data.matchTime}  •  🔥 HOT: ${hotStatus}\n\n` +
+    `📊 *Nhận định:*\n${data.insights.map((i) => `• ${i}`).join("\n")}\n\n` +
+    `🎯 *Dự đoán:* ${data.prediction}`
+  );
+}
+
+function buildInsightKeyboard(data) {
+  const hotStatus = data.hot ? "🔥 CÓ" : "❄️ KHÔNG";
+  return {
+    inline_keyboard: [
+      [{ text: `🔄 Đổi HOT (Hiện: ${hotStatus})`, callback_data: "toggle_hot" }],
+      [{ text: "🚀 Đăng lên Slide", callback_data: "confirm_insight" }],
+      [{ text: "❌ Hủy", callback_data: "cancel_post" }],
+    ],
+  };
+}
+
+// Keyboard cho bản nháp daily preview — dùng draftId để phân biệt từng trận
+function buildDraftKeyboard(draftId, hot) {
+  const hotStatus = hot ? "🔥 CÓ" : "❄️ KHÔNG";
+  return {
+    inline_keyboard: [
+      [{ text: `🔄 Đổi HOT (Hiện: ${hotStatus})`, callback_data: `dtoggle_${draftId}` }],
+      [{ text: "✅ Đăng lên Slide", callback_data: `dapprove_${draftId}` }],
+      [{ text: "⏭ Bỏ qua", callback_data: `dskip_${draftId}` }],
+    ],
+  };
+}
+
+function buildPortableText(sections, assetIds) {
+  return sections.flatMap((section, i) => {
+    const blocks = [
+      {
+        _type: "block",
+        _key: `h2-${i}-${Date.now()}`,
+        style: "h2",
+        markDefs: [],
+        children: [{ _type: "span", _key: `sh-${i}`, text: section.heading }],
+      },
+      {
+        _type: "block",
+        _key: `p-${i}-${Date.now() + i}`,
+        style: "normal",
+        markDefs: [],
+        children: [{ _type: "span", _key: `sp-${i}`, text: section.text }],
+      },
+    ];
+    if (assetIds[i + 1]) {
+      blocks.push({
+        _type: "image",
+        _key: `img-${i}-${Date.now()}`,
+        asset: { _type: "reference", _ref: assetIds[i + 1] },
+      });
+    }
+    return blocks;
+  });
+}
+
+async function uploadPhotos(ctx, photos) {
+  return Promise.all(
+    photos.map(async (fileId) => {
+      const link = await ctx.telegram.getFileLink(fileId);
+      const res = await axios.get(link.href, { responseType: "arraybuffer" });
+      const asset = await sanity.assets.upload("image", Buffer.from(res.data));
+      return asset._id;
+    })
+  );
+}
+
+function delay(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// ============================================================
+// 6. AI — TẠO NHẬN ĐỊNH CHO MỘT TRẬN
+// ============================================================
+
+// standings: object từ fetchStandings (có thể rỗng nếu CL knockout / lỗi API)
+async function generateDraftForMatch(match, standings = {}) {
+  const leagueInfo = LEAGUE_MAP[match.leagueCode];
+  const homeTeam = match.homeTeam?.name ?? "Đội nhà";
+  const awayTeam = match.awayTeam?.name ?? "Đội khách";
+  const matchTime = formatMatchTime(match.utcDate);
+
+  const homeStats = standings[match.homeTeam?.id];
+  const awayStats = standings[match.awayTeam?.id];
+
+  // Chuyển stats thành chuỗi ngắn gọn để đưa vào prompt
+  const formatStats = (s, name) =>
+    s
+      ? `${name}: Hạng ${s.position}, ${s.points} điểm (${s.won}W-${s.draw}D-${s.lost}L), phong độ 5 trận: ${s.form}, ${s.goalsFor} bàn thắng/${s.goalsAgainst} bàn thua`
+      : `${name}: không có dữ liệu BXH (dùng kiến thức của bạn)`;
+
+  const dataContext = `
+DỮ LIỆU THỰC TẾ MÙA NÀY (lấy từ API, ưu tiên dùng):
+- ${formatStats(homeStats, homeTeam)}
+- ${formatStats(awayStats, awayTeam)}`;
+
+  const prompt = `
+Bạn là chuyên gia phân tích bóng đá tiếng Việt. CHỈ viết insights NGẮN GỌN (tối đa 15 từ/dòng), KHÔNG viết đoạn văn dài.
+Trận: ${homeTeam} vs ${awayTeam} | ${leagueInfo.name} | ${matchTime}
+${dataContext}
+
+Trả về DUY NHẤT JSON hợp lệ:
+{
+  "homeTeam": "${homeTeam}",
+  "awayTeam": "${awayTeam}",
+  "matchTime": "${matchTime}",
+  "hot": false,
+  "insights": [
+    "🏠 Đội nhà: [hạng + điểm + phong độ thực tế, tối đa 12 từ]",
+    "✈️ Đội khách: [hạng + điểm + phong độ thực tế, tối đa 12 từ]",
+    "⚔️ Đối đầu: [lịch sử gần nhất, tối đa 12 từ]",
+    "🔑 Yếu tố: [1 yếu tố quyết định, tối đa 12 từ]"
+  ],
+  "prediction": "Tỉ số dự đoán + lý do ngắn (tối đa 10 từ)"
+}`;
+
+  const result = await model.generateContent(prompt);
+  const data = parseAIJson(result.response.text());
+
+  return {
+    ...data,
+    leagueCode: match.leagueCode,
+    leagueSlug: leagueInfo.slug,
+    leagueName: leagueInfo.name,
+    leagueFlag: leagueInfo.flag,
+    matchDate: match.utcDate, // ISO datetime thực tế — dùng để auto-delete
+  };
+}
+
+// ============================================================
+// 7. DAILY PREVIEW — Gửi bản nháp nhận định hàng ngày
+// ============================================================
+
+async function runDailyPreview(targetChatId, dateOffset = 0) {
+  if (!targetChatId) {
+    console.warn("⚠️ Chưa set TELEGRAM_OWNER_CHAT_ID trong .env");
+    return;
+  }
+
+  const target = new Date();
+  target.setDate(target.getDate() + dateOffset);
+  const dateStr = target.toISOString().split("T")[0]; // YYYY-MM-DD
+  const dateVN = target.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  await bot.telegram.sendMessage(
+    targetChatId,
+    `🗓 *Nhận định ngày ${dateVN}*\n_Đang tải lịch thi đấu..._`,
+    { parse_mode: "Markdown" }
+  );
+
+  // Lấy lịch thi đấu
+  let matches;
+  try {
+    const allMatches = await fetchMatchesForDate(dateStr);
+    matches = selectMatches(allMatches);
+  } catch (e) {
+    await bot.telegram.sendMessage(
+      targetChatId,
+      `❌ Không lấy được lịch: ${e.message}`
+    );
+    return;
+  }
+
+  if (!matches.length) {
+    await bot.telegram.sendMessage(
+      targetChatId,
+      "📭 Hôm nay không có trận nào trong các giải theo dõi."
+    );
+    return;
+  }
+
+  // Group theo giải
+  const byLeague = {};
+  for (const m of matches) {
+    if (!byLeague[m.leagueCode]) byLeague[m.leagueCode] = [];
+    byLeague[m.leagueCode].push(m);
+  }
+
+  const totalMatches = matches.length;
+  const leagueCount = Object.keys(byLeague).length;
+  await bot.telegram.sendMessage(
+    targetChatId,
+    `✅ *${totalMatches} trận* từ *${leagueCount} giải*\n_Đang tải BXH + tạo nhận định..._`,
+    { parse_mode: "Markdown" }
+  );
+
+  // Fetch BXH cho từng giải (data thực tế từ API)
+  const standingsMap = {}; // leagueCode → { teamId: stats }
+  for (const code of Object.keys(byLeague)) {
+    standingsMap[code] = await fetchStandings(code);
+    await delay(6000); // giữ trong giới hạn 10 req/phút của free tier
+  }
+
+  // Xử lý từng giải
+  for (const [code, leagueMatches] of Object.entries(byLeague)) {
+    const leagueInfo = LEAGUE_MAP[code];
+
+    for (const match of leagueMatches) {
+      try {
+        const draft = await generateDraftForMatch(match, standingsMap[code]);
+        const draftId = `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        draftStore.set(draftId, draft);
+
+        const header = `${leagueInfo.flag} *[${leagueInfo.name}]*\n`;
+        await bot.telegram.sendMessage(
+          targetChatId,
+          header + buildInsightText(draft),
+          {
+            parse_mode: "Markdown",
+            reply_markup: buildDraftKeyboard(draftId, draft.hot),
+          }
+        );
+
+        // Delay 2s giữa các lần gọi Gemini tránh rate limit
+        await delay(2000);
+      } catch (e) {
+        await bot.telegram.sendMessage(
+          targetChatId,
+          `⚠️ Lỗi tạo nhận định *${match.homeTeam?.name}* vs *${match.awayTeam?.name}*: ${e.message}`,
+          { parse_mode: "Markdown" }
+        );
+      }
+    }
+  }
+
+  await bot.telegram.sendMessage(
+    targetChatId,
+    "✅ Xong! Chọn các trận muốn đăng bên trên.",
+  );
+}
+
+// ============================================================
+// 8. CORE — Xử lý INSIGHT thủ công
+// ============================================================
+
+async function processInsight(ctx, rawText) {
+  const currentDateStr = new Date().toLocaleDateString("vi-VN");
+  await ctx.reply("📊 Đang trích xuất số liệu...");
+
+  const prompt = `
+Bạn là chuyên gia phân tích bóng đá. Hôm nay là ${currentDateStr}.
+Trích xuất thông tin trận đấu từ nội dung: "${rawText}"
+
+Quy tắc matchTime:
+- Chỉ có ngày → "DD/MM"  |  Có cả giờ → "HH:mm - DD/MM"
+
+Trả về DUY NHẤT JSON hợp lệ:
+{
+  "homeTeam": "...", "awayTeam": "...", "matchTime": "...",
+  "hot": false,
+  "insights": ["...", "...", "...", "..."],
+  "prediction": "..."
+}`;
+
+  const result = await model.generateContent(prompt);
+  const insightData = parseAIJson(result.response.text());
+
+  pendingPosts.set(ctx.chat.id, { ...insightData, type: "matchInsight" });
+
+  await ctx.reply(buildInsightText(insightData), {
+    parse_mode: "Markdown",
+    reply_markup: buildInsightKeyboard(insightData),
+  });
+}
+
+// ============================================================
+// 9. CORE — Xử lý BÀI VIẾT thủ công
+// ============================================================
+
+async function processArticle(ctx, rawText, photos) {
+  const currentDateStr = new Date().toLocaleDateString("vi-VN");
+  await ctx.reply("⏳ AI đang soạn bài viết...");
+
+  const availableSlugs = Object.keys(CATEGORIES).join(", ");
+
+  const prompt = `
+Bạn là biên tập viên bóng đá chuyên nghiệp viết tiếng Việt. Hôm nay là ${currentDateStr}.
+Viết bài báo bóng đá chuẩn SEO từ nội dung: "${rawText}"
+
+Yêu cầu:
+- Chọn "league" từ danh sách: [${availableSlugs}] — tự nhận diện giải đấu từ nội dung
+- 3–5 sections, mỗi section: heading h2 + đoạn text 80–150 từ tiếng Việt
+- Tiêu đề hấp dẫn, excerpt 1–2 câu
+
+Trả về DUY NHẤT JSON hợp lệ:
+{
+  "title": "...", "excerpt": "...", "league": "slug-giai-dau",
+  "sections": [{ "heading": "...", "text": "..." }]
+}`;
+
+  const result = await model.generateContent(prompt);
+  const data = parseAIJson(result.response.text());
+
+  const categoryId = getCategoryId(data.league);
+  const leagueTitle = CATEGORIES[data.league]?.title ?? data.league;
+
+  pendingPosts.set(ctx.chat.id, { ...data, categoryId, photos, type: "post" });
+
+  await ctx.reply(
+    `📝 *${data.title}*\n\n📌 _${data.excerpt}_\n\n🏆 Giải: *${leagueTitle}*\n📸 Ảnh: ${photos.length}`,
+    {
+      parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
           [{ text: "✅ Đăng ngay", callback_data: "confirm_post" }],
           [{ text: "❌ Hủy", callback_data: "cancel_post" }],
         ],
       },
-    });
+    }
+  );
+}
 
-    if (message.media_group_id)
-      mediaGroupStorage.delete(message.media_group_id);
-  } catch (error) {
-    ctx.reply("❌ Lỗi soạn bài.");
+// ============================================================
+// 10. COMMANDS
+// ============================================================
+
+bot.start((ctx) =>
+  ctx.reply(
+    `⚽ *Bongda247 Bot*\n\n🔑 *Chat ID của bạn:* \`${ctx.chat.id}\`\n\n` +
+      "📌 *Gửi thủ công:*\n" +
+      "• Text/ảnh → soạn bài viết tự động\n" +
+      "• Có từ *INSIGHT* → tạo số liệu trận đấu\n\n" +
+      "📋 *Lệnh:*\n" +
+      "/preview — Nhận định trận hôm nay\n" +
+      "/tomorrow — Nhận định trận ngày mai\n" +
+      "/list — Xem & xóa insights đang hiển thị\n" +
+      "/posts — Xem & xóa bài viết gần đây\n" +
+      "/reload — Tải lại danh mục từ Sanity",
+    { parse_mode: "Markdown" }
+  )
+);
+
+bot.command("reload", async (ctx) => {
+  await loadCategories();
+  const list = Object.entries(CATEGORIES)
+    .map(([slug, cat]) => `• \`${slug}\` — ${cat.title}`)
+    .join("\n");
+  ctx.reply(
+    `✅ Đã tải lại *${Object.keys(CATEGORIES).length}* danh mục:\n${list}`,
+    { parse_mode: "Markdown" }
+  );
+});
+
+bot.command("preview", async (ctx) => {
+  const chatId = ctx.chat.id.toString();
+  await ctx.reply("🔄 Đang tải nhận định hôm nay...");
+  runDailyPreview(chatId, 0).catch((e) =>
+    ctx.reply("❌ Lỗi preview: " + e.message)
+  );
+});
+
+bot.command("tomorrow", async (ctx) => {
+  const chatId = ctx.chat.id.toString();
+  await ctx.reply("🔄 Đang tải nhận định ngày mai...");
+  runDailyPreview(chatId, 1).catch((e) =>
+    ctx.reply("❌ Lỗi preview: " + e.message)
+  );
+});
+
+bot.command("list", async (ctx) => {
+  try {
+    const insights = await sanity.fetch(
+      `*[_type == "matchInsight"] | order(publishedAt desc) [0...10] { _id, homeTeam, awayTeam, matchTime, hot }`
+    );
+    if (!insights.length) return ctx.reply("📭 Chưa có insight nào.");
+
+    await ctx.reply(`📋 *${insights.length} Insight gần nhất:*`, {
+      parse_mode: "Markdown",
+    });
+    for (const item of insights) {
+      const badge = item.hot ? "🔥" : "⚽";
+      await ctx.reply(
+        `${badge} *${item.homeTeam}* vs *${item.awayTeam}*  ⏰ ${item.matchTime}`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🗑 Xóa", callback_data: `delete_insight_${item._id}` }],
+            ],
+          },
+        }
+      );
+    }
+  } catch (e) {
+    ctx.reply("❌ Lỗi: " + e.message);
   }
 });
 
-// --- ACTIONS XỬ LÝ NÚT BẤM ---
+bot.command("posts", async (ctx) => {
+  try {
+    const posts = await sanity.fetch(
+      `*[_type == "post"] | order(publishedAt desc) [0...8] { _id, title, publishedAt, "category": category->title }`
+    );
+    if (!posts.length) return ctx.reply("📭 Chưa có bài viết nào.");
 
-// 1. Đổi trạng thái HOT
-bot.action("toggle_hot", async (ctx) => {
-  const chatId = ctx.chat.id;
-  const data = pendingPosts.get(chatId);
-  if (!data || data.type !== "matchInsight")
-    return ctx.answerCbQuery("❌ Hết hạn!");
+    await ctx.reply(`📋 *${posts.length} bài viết gần nhất:*`, {
+      parse_mode: "Markdown",
+    });
+    for (const post of posts) {
+      const date = new Date(post.publishedAt).toLocaleDateString("vi-VN");
+      await ctx.reply(
+        `📰 *${post.title}*\n🏆 ${post.category ?? "—"}  📅 ${date}`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🗑 Xóa", callback_data: `delete_post_${post._id}` }],
+            ],
+          },
+        }
+      );
+    }
+  } catch (e) {
+    ctx.reply("❌ Lỗi: " + e.message);
+  }
+});
 
-  data.hot = !data.hot; // Đảo trạng thái true/false
-  pendingPosts.set(chatId, data); // Cập nhật lại vào bộ nhớ tạm
+// ============================================================
+// 11. MESSAGE HANDLER
+// ============================================================
 
-  const hotStatus = data.hot ? "🔥 CÓ" : "❄️ KHÔNG";
+async function handleMessage(ctx) {
+  const message = ctx.message;
+  const rawText = message.caption || message.text || "";
+
+  // Album ảnh — fix race condition với setTimeout
+  if (message.media_group_id) {
+    const groupId = message.media_group_id;
+    if (!mediaGroupStorage.has(groupId))
+      mediaGroupStorage.set(groupId, { photos: [], caption: null });
+
+    const group = mediaGroupStorage.get(groupId);
+    group.photos.push(message.photo[message.photo.length - 1].file_id);
+    if (message.caption) group.caption = message.caption;
+
+    if (mediaGroupTimers.has(groupId)) clearTimeout(mediaGroupTimers.get(groupId));
+
+    const timer = setTimeout(async () => {
+      const groupData = mediaGroupStorage.get(groupId);
+      mediaGroupStorage.delete(groupId);
+      mediaGroupTimers.delete(groupId);
+      if (!groupData.caption) return;
+      try {
+        if (groupData.caption.toUpperCase().includes("INSIGHT")) {
+          await processInsight(ctx, groupData.caption);
+        } else {
+          await processArticle(ctx, groupData.caption, groupData.photos);
+        }
+      } catch (e) {
+        ctx.reply("❌ Lỗi xử lý album: " + e.message);
+      }
+    }, 1500);
+
+    mediaGroupTimers.set(groupId, timer);
+    return;
+  }
+
+  if (!rawText) return;
+
+  const photos = message.photo
+    ? [message.photo[message.photo.length - 1].file_id]
+    : [];
 
   try {
-    await ctx.editMessageText(
-      `🔍 **XÁC NHẬN INSIGHT**\n------------------\n🏟 ${data.homeTeam} VS ${data.awayTeam}\n⏰ ${data.matchTime}\n🔥 Trận HOT: ${hotStatus}\n\n📊 **Số liệu:**\n${data.insights.join("\n")}`,
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: `Đổi trạng thái HOT (Hiện: ${hotStatus})`,
-                callback_data: "toggle_hot",
-              },
-            ],
-            [{ text: "🚀 Đăng lên Slide", callback_data: "confirm_insight" }],
-            [{ text: "❌ Hủy", callback_data: "cancel_post" }],
-          ],
-        },
-      },
-    );
-    ctx.answerCbQuery(`Đã chuyển HOT sang: ${hotStatus}`);
+    if (rawText.toUpperCase().includes("INSIGHT")) {
+      await processInsight(ctx, rawText);
+    } else {
+      await processArticle(ctx, rawText, photos);
+    }
   } catch (e) {
-    ctx.answerCbQuery("Lỗi giao diện.");
+    ctx.reply("❌ Lỗi: " + e.message);
+  }
+}
+
+bot.on(message("text"), handleMessage);
+bot.on(message("photo"), handleMessage);
+
+// ============================================================
+// 12. CALLBACK ACTIONS — thủ công (pendingPosts)
+// ============================================================
+
+bot.action("toggle_hot", async (ctx) => {
+  const data = pendingPosts.get(ctx.chat.id);
+  if (!data || data.type !== "matchInsight")
+    return ctx.answerCbQuery("❌ Dữ liệu hết hạn!");
+  data.hot = !data.hot;
+  pendingPosts.set(ctx.chat.id, data);
+  try {
+    await ctx.editMessageText(buildInsightText(data), {
+      parse_mode: "Markdown",
+      reply_markup: buildInsightKeyboard(data),
+    });
+    ctx.answerCbQuery(`HOT: ${data.hot ? "🔥 CÓ" : "❄️ KHÔNG"}`);
+  } catch {
+    ctx.answerCbQuery("Đã cập nhật!");
   }
 });
 
-// 2. Xác nhận đăng Insight
 bot.action("confirm_insight", async (ctx) => {
-  const chatId = ctx.chat.id;
-  const data = pendingPosts.get(chatId);
+  const data = pendingPosts.get(ctx.chat.id);
   if (!data || data.type !== "matchInsight")
     return ctx.reply("❌ Dữ liệu hết hạn.");
-
   try {
     await sanity.create({
       _type: "matchInsight",
       homeTeam: data.homeTeam,
       awayTeam: data.awayTeam,
       matchTime: data.matchTime,
-      hot: data.hot,
+      matchDate: data.matchDate ?? null,
+      hot: !!data.hot,
       insights: data.insights,
       prediction: data.prediction,
       publishedAt: new Date().toISOString(),
     });
-
-    ctx.editMessageText(
-      `✅ **ĐÃ ĐĂNG THÀNH CÔNG!**\n\n🏟 ${data.homeTeam} VS ${data.awayTeam}\n🔥 HOT: ${data.hot ? "CÓ" : "KHÔNG"}\n📊 Insights:\n${data.insights.join("\n")}`,
-      { parse_mode: "Markdown" },
+    await ctx.editMessageText(
+      `✅ *Đã đăng Insight!*\n\n🏟 *${data.homeTeam}* vs *${data.awayTeam}*\n⏰ ${data.matchTime}`,
+      { parse_mode: "Markdown" }
     );
-    pendingPosts.delete(chatId);
+    pendingPosts.delete(ctx.chat.id);
   } catch (e) {
-    ctx.reply("Lỗi: " + e.message);
+    ctx.reply("❌ Lỗi: " + e.message);
   }
 });
 
-// 3. Xác nhận đăng Bài viết
 bot.action("confirm_post", async (ctx) => {
-  const chatId = ctx.chat.id;
-  const data = pendingPosts.get(chatId);
-  if (!data || data.type !== "post") return;
-
-  ctx.answerCbQuery("🚀 Đang đẩy bài viết...");
+  const data = pendingPosts.get(ctx.chat.id);
+  if (!data || data.type !== "post")
+    return ctx.answerCbQuery("❌ Dữ liệu hết hạn!");
+  ctx.answerCbQuery("🚀 Đang đăng bài...");
   try {
-    const assetIds = await Promise.all(
-      data.photos.map(async (fId) => {
-        const link = await ctx.telegram.getFileLink(fId);
-        const res = await axios.get(link.href, { responseType: "arraybuffer" });
-        const asset = await sanity.assets.upload(
-          "image",
-          Buffer.from(res.data),
-        );
-        return asset._id;
-      }),
-    );
-
-    // Xây dựng Portable Text
-    let finalContent = data.sections
-      .map((section, index) => {
-        let blocks = [
-          {
-            _type: "block",
-            style: "h2",
-            children: [{ _type: "span", text: section.heading }],
-          },
-          {
-            _type: "block",
-            style: "normal",
-            children: [{ _type: "span", text: section.text }],
-          },
-        ];
-        if (assetIds[index + 1]) {
-          blocks.push({
-            _type: "image",
-            asset: { _type: "reference", _ref: assetIds[index + 1] },
-          });
-        }
-        return blocks;
-      })
-      .flat();
-
+    const assetIds =
+      data.photos.length > 0 ? await uploadPhotos(ctx, data.photos) : [];
     await sanity.create({
       _type: "post",
       title: data.title,
-      slug: {
-        _type: "slug",
-        current: `${createSlug(data.title)}-${Date.now()}`,
-      },
+      slug: { _type: "slug", current: `${createSlug(data.title)}-${Date.now()}` },
       mainImage: assetIds[0]
-        ? { _type: "image", asset: { _ref: assetIds[0] } }
+        ? { _type: "image", asset: { _type: "reference", _ref: assetIds[0] } }
         : undefined,
       excerpt: data.excerpt,
-      content: finalContent,
-      category: { _type: "reference", _ref: data.categoryId },
+      content: buildPortableText(data.sections || [], assetIds),
+      category: data.categoryId
+        ? { _type: "reference", _ref: data.categoryId }
+        : undefined,
       publishedAt: new Date().toISOString(),
     });
-
-    ctx.editMessageText(`✅ Đã xuất bản bài viết: ${data.title}`);
-    pendingPosts.delete(chatId);
-  } catch (error) {
-    ctx.reply("Lỗi: " + error.message);
+    await ctx.editMessageText(
+      `✅ *Đã xuất bản!*\n\n📰 ${data.title}`,
+      { parse_mode: "Markdown" }
+    );
+    pendingPosts.delete(ctx.chat.id);
+  } catch (e) {
+    ctx.reply("❌ Lỗi đăng bài: " + e.message);
   }
 });
 
-// 4. Hủy/Xóa
 bot.action("cancel_post", (ctx) => {
   pendingPosts.delete(ctx.chat.id);
   ctx.editMessageText("❌ Đã hủy bản nháp.");
 });
 
-// 5. Quản lý Insight (Lệnh xóa tay)
+// ============================================================
+// 13. CALLBACK ACTIONS — bản nháp daily preview (draftStore)
+// ============================================================
+
 bot.on("callback_query", async (ctx) => {
-  const action = ctx.callbackQuery.data;
+  const action = ctx.callbackQuery?.data ?? "";
+
+  // --- Toggle HOT cho bản nháp ---
+  if (action.startsWith("dtoggle_")) {
+    const draftId = action.replace("dtoggle_", "");
+    const draft = draftStore.get(draftId);
+    if (!draft) return ctx.answerCbQuery("❌ Bản nháp hết hạn!");
+
+    draft.hot = !draft.hot;
+    draftStore.set(draftId, draft);
+
+    const leagueInfo = LEAGUE_MAP[draft.leagueCode] ?? {};
+    const header = leagueInfo.flag ? `${leagueInfo.flag} *[${leagueInfo.name}]*\n` : "";
+    try {
+      await ctx.editMessageText(header + buildInsightText(draft), {
+        parse_mode: "Markdown",
+        reply_markup: buildDraftKeyboard(draftId, draft.hot),
+      });
+      ctx.answerCbQuery(`HOT: ${draft.hot ? "🔥 CÓ" : "❄️ KHÔNG"}`);
+    } catch {
+      ctx.answerCbQuery("Đã cập nhật!");
+    }
+    return;
+  }
+
+  // --- Duyệt đăng Insight từ bản nháp ---
+  if (action.startsWith("dapprove_")) {
+    const draftId = action.replace("dapprove_", "");
+    const draft = draftStore.get(draftId);
+    if (!draft) return ctx.answerCbQuery("❌ Bản nháp hết hạn!");
+
+    try {
+      await sanity.create({
+        _type: "matchInsight",
+        homeTeam: draft.homeTeam,
+        awayTeam: draft.awayTeam,
+        matchTime: draft.matchTime,
+        matchDate: draft.matchDate ?? null,
+        hot: !!draft.hot,
+        insights: draft.insights,
+        prediction: draft.prediction,
+        publishedAt: new Date().toISOString(),
+      });
+      ctx.answerCbQuery("✅ Đã đăng lên Slide!");
+      ctx.editMessageText(
+        `✅ *Đã lên Slide!*\n🏟 *${draft.homeTeam}* vs *${draft.awayTeam}*  ⏰ ${draft.matchTime}\n${draft.hot ? "🔥 HOT" : ""}`,
+        { parse_mode: "Markdown" }
+      );
+      draftStore.delete(draftId);
+    } catch (e) {
+      ctx.answerCbQuery("❌ Lỗi: " + e.message);
+    }
+    return;
+  }
+
+  // --- Bỏ qua bản nháp ---
+  if (action.startsWith("dskip_")) {
+    const draftId = action.replace("dskip_", "");
+    draftStore.delete(draftId);
+    ctx.answerCbQuery("⏭ Đã bỏ qua");
+    ctx.editMessageText("⏭ Bỏ qua.", { parse_mode: "Markdown" });
+    return;
+  }
+
+  // --- Xóa Insight đã đăng ---
   if (action.startsWith("delete_insight_")) {
     const id = action.replace("delete_insight_", "");
     try {
       await sanity.delete(id);
       ctx.answerCbQuery("✅ Đã xóa!");
-      ctx.editMessageText("🗑 Trận đấu đã gỡ khỏi Slide.");
-    } catch (e) {
-      ctx.answerCbQuery("Lỗi xóa.");
+      ctx.editMessageText("🗑 *Đã xóa khỏi Slide.*", { parse_mode: "Markdown" });
+    } catch {
+      ctx.answerCbQuery("❌ Lỗi xóa.");
+    }
+    return;
+  }
+
+  // --- Xóa bài viết đã đăng ---
+  if (action.startsWith("delete_post_")) {
+    const id = action.replace("delete_post_", "");
+    try {
+      await sanity.delete(id);
+      ctx.answerCbQuery("✅ Đã xóa!");
+      ctx.editMessageText("🗑 *Bài viết đã được xóa.*", { parse_mode: "Markdown" });
+    } catch {
+      ctx.answerCbQuery("❌ Lỗi xóa.");
     }
   }
 });
 
-bot.launch();
-console.log("🚀 Bongda247 Bot is Running...");
+// ============================================================
+// 14. CRON JOBS
+// ============================================================
+
+// 8:00 sáng — gửi nhận định hàng ngày
+cron.schedule(
+  "0 8 * * *",
+  () => {
+    console.log("⏰ Cron: Chạy daily preview...");
+    runDailyPreview(OWNER_CHAT_ID, 0);
+  },
+  { timezone: "Asia/Ho_Chi_Minh" }
+);
+
+// 7:55 sáng — tự động xóa insight cũ (chạy trước daily preview 5 phút)
+cron.schedule(
+  "55 7 * * *",
+  async () => {
+    console.log("🧹 Cron: Dọn dẹp matchInsight cũ...");
+    try {
+      // Xóa insight có matchDate đã qua hơn 3 tiếng (trận chắc chắn kết thúc)
+      const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      const stale = await sanity.fetch(
+        `*[_type == "matchInsight" && matchDate < $cutoff]{ _id, homeTeam, awayTeam }`,
+        { cutoff }
+      );
+
+      if (!stale.length) {
+        console.log("✅ Không có insight nào cần xóa.");
+        return;
+      }
+
+      await Promise.all(stale.map((doc) => sanity.delete(doc._id)));
+
+      console.log(`🗑 Đã xóa ${stale.length} insight:`, stale.map((d) => `${d.homeTeam} vs ${d.awayTeam}`).join(", "));
+
+      if (OWNER_CHAT_ID) {
+        await bot.telegram.sendMessage(
+          OWNER_CHAT_ID,
+          `🧹 *Dọn dẹp tự động:* Đã xóa *${stale.length}* insight của các trận đã kết thúc.`,
+          { parse_mode: "Markdown" }
+        );
+      }
+    } catch (e) {
+      console.error("❌ Lỗi cleanup:", e.message);
+    }
+  },
+  { timezone: "Asia/Ho_Chi_Minh" }
+);
+
+// ============================================================
+// 15. LAUNCH
+// ============================================================
+
+loadCategories().then(() => {
+  bot.launch();
+  console.log("🚀 Bongda247 Bot is Running...");
+  console.log(
+    OWNER_CHAT_ID
+      ? `📨 Daily preview sẽ gửi đến chat ID: ${OWNER_CHAT_ID}`
+      : "⚠️  TELEGRAM_OWNER_CHAT_ID chưa được set — cron sẽ không gửi được"
+  );
+});
+
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
