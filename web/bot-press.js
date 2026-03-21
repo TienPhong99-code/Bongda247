@@ -522,7 +522,7 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
         const draftId = `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         draftStore.set(draftId, draft);
 
-        const header = `${leagueInfo.flag} *[${leagueInfo.name}]*\n`;
+        const header = `${leagueInfo.flag} *${escapeMd(leagueInfo.name)}*\n`;
         await bot.telegram.sendMessage(
           targetChatId,
           header + buildInsightText(draft),
