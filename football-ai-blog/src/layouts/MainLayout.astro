@@ -1,0 +1,124 @@
+---
+import { SITE_TITLE } from "../content/consts";
+import Header from "../components/layout/Header.astro";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  canonicalURL?: string;
+  type?: "website" | "article"; // Thêm type để phân biệt trang chủ và bài viết
+}
+
+const {
+  title,
+  description = "Bongda247 - Tin tức nhận định bóng đá 24h cập nhật liên tục",
+  image = "/default-og-image.jpg",
+  canonicalURL = Astro.url.href,
+  type = "website",
+} = Astro.props;
+
+// Đảm bảo title luôn có hậu tố tên Web để nhận diện thương hiệu
+const fullTitle = title.includes(SITE_TITLE)
+  ? title
+  : `${title} | ${SITE_TITLE}`;
+---
+
+<!doctype html>
+<html lang="vi" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{fullTitle}</title>
+    <meta name="title" content={fullTitle} />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(image, Astro.url)} />
+
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={Astro.url} />
+    <meta property="twitter:title" content={fullTitle} />
+    <meta property="twitter:description" content={description} />
+    <meta property="twitter:image" content={new URL(image, Astro.url)} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Oswald:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/font/SVN-Hemi/stylesheet.css" />
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+      crossorigin="anonymous"></script>
+    <script is:inline>
+      // Hàm này chạy ngay lập tức khi load trang để set đúng theme
+      const theme = (() => {
+        if (
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("theme")
+        ) {
+          return localStorage.getItem("theme");
+        }
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          return "dark";
+        }
+        return "light";
+      })();
+
+      if (theme === "light") {
+        document.documentElement.classList.remove("dark");
+      } else {
+        document.documentElement.classList.add("dark");
+      }
+      window.localStorage.setItem("theme", theme);
+    </script>
+  </head>
+
+  <body class="transition-colors duration-300">
+    <Header />
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="bg-slate-900 border-t border-slate-800 mt-20 py-16 px-4">
+      <div class="max-w-7xl mx-auto flex flex-col items-center">
+        <h2 class="font-hemi text-2xl font-bold text-white mb-4 italic">
+          BONGDA<span class="text-green-500">247</span>
+        </h2>
+        <p class="text-slate-400 max-w-md text-center">
+          &copy; {new Date().getFullYear()} Football AI Blog. Mọi thông tin được tổng
+          hợp và phân tích tự động bằng AI phục vụ cộng đồng yêu bóng đá.
+        </p>
+        <div class="mt-8 flex gap-6 text-sm">
+          <a
+            href="/about"
+            class="text-slate-500 hover:text-green-500 transition-colors"
+            >Giới thiệu</a
+          >
+          <a
+            href="/contact"
+            class="text-slate-500 hover:text-green-500 transition-colors"
+            >Liên hệ</a
+          >
+          <a
+            href="/privacy"
+            class="text-slate-500 hover:text-green-500 transition-colors"
+            >Bảo mật</a
+          >
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

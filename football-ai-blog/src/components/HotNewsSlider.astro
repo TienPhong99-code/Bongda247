@@ -1,0 +1,100 @@
+---
+import { client, urlFor } from "../lib/sanity.ts";
+import type { SliderPost } from "../types";
+// @ts-ignore
+import "swiper/css";
+// @ts-ignore
+import "swiper/css/pagination";
+// @ts-ignore
+import "swiper/css/navigation";
+
+// Query lấy 5 bài viết mới nhất
+const hotPosts = await client.fetch<SliderPost[]>(`
+  *[_type == "post"] | order(publishedAt desc)[0...5] {
+    title,
+    "slug": slug.current,
+    mainImage,
+    excerpt,
+    "category": category->title,
+    "categoryName": category->title,
+    "categorySlug": category->slug.current
+  }
+`);
+---
+
+<div class="relative group">
+  <div
+    class="swiper hotSwiper rounded-2xl overflow-hidden border border-slate-800 shadow-2xl"
+  >
+    <div class="swiper-wrapper">
+      {
+        hotPosts.map((post) => (
+          <div class="swiper-slide">
+            <div class="relative aspect-video">
+              <a
+                href={`/${post.categorySlug}/${post.slug}`}
+                class="block absolute inset-0 z-3"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent z-1" />
+              {post.mainImage ? (
+                <span class="absolute inset-0">
+                  <img
+                    src={urlFor(post.mainImage).width(1200).url()}
+                    alt={post.title}
+                    class="w-full h-full object-cover"
+                  />
+                </span>
+              ) : (
+                <div class="w-full absolute h-full bg-slate-900 flex items-center justify-center">
+                  <span class="font-hemi text-slate-700 italic text-4xl">
+                    BONGDA247
+                  </span>
+                </div>
+              )}
+
+              <div class="absolute bottom-0 left-0 p-6 md:p-10 z-2 w-full">
+                {post.categoryName && (
+                  <a
+                    href={`/${post.categorySlug}`}
+                    class={`inline-block px-3 py-1 rounded-md mb-3 text-[10px] font-bold uppercase font-hemi tracking-wider transition-colors
+        ${post.categorySlug === "nhan-dinh" ? "bg-red-600 text-white" : "bg-brand text-white"}
+      `}
+                  >
+                    {post.categoryName}
+                  </a>
+                )}
+                <h2 class="text-2xl md:text-4xl font-hemi text-white leading-tight mb-3 line-clamp-2 drop-shadow-md">
+                  {post.title}
+                </h2>
+                <p class="text-slate-300 text-sm md:text-base line-clamp-2 hidden md:block opacity-90">
+                  {post.excerpt}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="swiper-pagination !bottom-4"></div>
+  </div>
+</div>
+
+<script>
+  import Swiper from "swiper";
+  import { Navigation, Pagination, Autoplay } from "swiper/modules";
+
+  // Khởi tạo Swiper sau khi trang đã load
+  new Swiper(".hotSwiper", {
+    modules: [Navigation, Pagination, Autoplay],
+    autoplay: {
+      delay: 5000,
+      disableOnInteraction: false,
+    },
+    pagination: {
+      el: ".swiper-pagination",
+      clickable: true,
+    },
+    speed: 800,
+  });
+</script>

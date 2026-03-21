@@ -1,0 +1,142 @@
+---
+// src/components/MatchInsights.astro
+import { client } from "../lib/sanity.ts";
+import type { MatchInsight } from "../types";
+import { Image } from "astro:assets";
+import { IMAGES } from "../assets/images";
+const rawInsights: MatchInsight[] = await client.fetch(`
+  *[_type == "matchInsight"] | order(hot desc, publishedAt desc)[0...15]
+`);
+
+const now = new Date();
+const currentDay = now.getDate();
+const currentMonth = now.getMonth() + 1;
+
+const insights = rawInsights.filter((item) => {
+  if (!item.matchTime) return false;
+
+  const timeParts = item.matchTime.split(" - ");
+  const dateStr = timeParts.length > 1 ? timeParts[1] : timeParts[0];
+
+  if (!dateStr.includes("/")) return true;
+
+  const [day, month] = dateStr.split("/").map(Number);
+
+  if (month > currentMonth) return true;
+  if (month === currentMonth && day >= currentDay) return true;
+
+  return false;
+});
+---
+
+<section class="py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4">
+      Số liệu chuyên sâu
+    </h2>
+    <div class="flex gap-2">
+      <button
+        class="insight-prev p-2 rounded-full border border-card hover:bg-brand cursor-pointer transition-colors bg-control"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg
+        >
+      </button>
+      <button
+        class="insight-next p-2 rounded-full border border-card hover:bg-brand cursor-pointer transition-colors bg-control"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg
+        >
+      </button>
+    </div>
+  </div>
+
+  <div class="swiper insightSwiper">
+    <div class="swiper-wrapper">
+      {
+        insights.map((item: MatchInsight) => (
+          <div class="swiper-slide h-auto!">
+            <div class="group flex gap-4 rounded-lg bg-card p-3 border border-card flex-col h-full">
+              <div>
+                <div class="flex justify-between items-center mb-4">
+                  <span class="text-secondary text-sm font-medium">
+                    {item.matchTime}
+                  </span>
+                  {item.hot && (
+                    <div class="flex gap-1 ">
+                      <Image
+                        src={IMAGES.ICON_HOT}
+                        alt="Hot"
+                        width={20}
+                        height={20}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div class="mb-4">
+                  <h3 class="font-hemi text-xl flex items-center gap-3">
+                    {item.homeTeam} <span>VS</span> {item.awayTeam}
+                  </h3>
+                </div>
+                <ul class="space-y-4 mb-2">
+                  {item.insights &&
+                    item.insights.map((text: string) => (
+                      <li class="text-sm text-secondary flex items-start gap-3 leading-relaxed">
+                        <span class="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 shrink-0 shadow-brand" />
+                        {text}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+
+              <div class="inline-block mt-auto w-fit ml-auto text-sm  transition-all p-2 px-4 rounded-full font-hemi bg-prediction">
+                {item.prediction}
+              </div>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  import Swiper from "swiper";
+  import { Navigation, Autoplay } from "swiper/modules";
+  // @ts-ignore
+  import "swiper/css";
+
+  new Swiper(".insightSwiper", {
+    modules: [Navigation, Autoplay],
+    slidesPerView: 3,
+    centeredSlides: false,
+    navigation: {
+      nextEl: ".insight-next",
+      prevEl: ".insight-prev",
+    },
+    breakpoints: {
+      768: {
+        slidesPerView: 3,
+        spaceBetween: 12,
+      },
+    },
+  });
+</script>

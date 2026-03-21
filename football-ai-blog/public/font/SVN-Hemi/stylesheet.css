@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'SVN-Hemi Head';
+    src: url('SVN-HemiHead.woff2') format('woff2'),
+        url('SVN-HemiHead.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+

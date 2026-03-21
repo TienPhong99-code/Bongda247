@@ -1,0 +1,61 @@
+---
+import { urlFor } from "../lib/sanity.ts";
+
+interface Props {
+  value: any[];
+}
+
+const { value } = Astro.props;
+---
+
+<div
+  class="prose max-w-none
+    prose-headings:text-main
+    prose-p:text-main
+    prose-h2:text-brand
+    prose-h2:font-oswald"
+>
+  {
+    value.map((block) => {
+      // Xử lý các khối văn bản (Cả H2 và Paragraph)
+      if (block._type === "block") {
+        const text = block.children.map((child: any) => child.text).join("");
+
+        if (block.style === "h2") {
+          return (
+            <h2 class="font-bold pb-2 mb-4 uppercase border-b border-card">
+              {text}
+            </h2>
+          );
+        }
+
+        return (
+          <p class="mb-6 leading-relaxed text-lg text-justify text-main">
+            {text}
+          </p>
+        );
+      }
+
+      // Nếu là khối hình ảnh (Đây là phần ảnh xen kẽ mà Bot đã đẩy lên)
+      if (block._type === "image") {
+        return (
+          <figure class="my-10">
+            <img
+              src={urlFor(block.asset).width(800).url()}
+              alt="Hình ảnh trong bài viết"
+              class="rounded-xl shadow-2xl mx-auto border border-card"
+              loading="lazy"
+            />
+            {block.caption && (
+              <figcaption class="text-center text-sm mt-3 italic text-secondary">
+                {block.caption}
+              </figcaption>
+            )}
+          </figure>
+        );
+      }
+
+      return null;
+    })
+  }
+</div>

@@ -1,0 +1,27 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  canonicalURL?: URL;
+}
+
+const { title, description, image, canonicalURL = Astro.url } = Astro.props;
+const siteName = "Bongda247 - Tin tức nhận định bóng đá 24h";
+const fullTitle = `${title} | ${siteName}`;
+---
+
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalURL} />
+
+<meta property="og:type" content="article" />
+<meta property="og:url" content={Astro.url} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+{image && <meta property="og:image" content={image} />}
+
+<meta property="twitter:card" content="summary_large_image" />
+<meta property="twitter:title" content={fullTitle} />
+<meta property="twitter:description" content={description} />
+{image && <meta property="twitter:image" content={image} />}

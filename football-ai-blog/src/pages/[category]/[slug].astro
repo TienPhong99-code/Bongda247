@@ -1,0 +1,116 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import PortableText from "../../components/PortableText.astro";
+import { client, urlFor } from "../../lib/sanity.ts";
+import type { PostDetail } from "../../types";
+
+// 1. Hàm getStaticPaths để khai báo tất cả các URL bài viết
+export async function getStaticPaths() {
+  const posts = await client.fetch(`
+    *[_type == "post"] {
+      "slug": slug.current,
+      "category": category->slug.current
+    }
+  `);
+
+  return posts.map((post: any) => ({
+    params: {
+      category: post.category || "tin-tuc", // fallback nếu thiếu category
+      slug: post.slug,
+    },
+  }));
+}
+
+// 2. Lấy dữ liệu cho từng trang cụ thể
+const { category, slug } = Astro.params;
+
+const post = await client.fetch<PostDetail | null>(
+  `
+  *[_type == "post" && slug.current == $slug][0] {
+    title,
+    publishedAt,
+    excerpt,
+    mainImage,
+    content,
+    "categoryName": category->title,
+    "categorySlug": category->slug.current,
+    "tags": hashtags
+  }
+`,
+  { slug },
+);
+
+if (!post) return Astro.redirect("/404");
+
+const seoImage = post.mainImage ? urlFor(post.mainImage).width(1200).url() : "";
+---
+
+<MainLayout
+  title={post.title}
+  description={post.excerpt}
+  image={seoImage}
+  type="article"
+>
+  <article class="max-w-4xl mx-auto">
+    <nav class="flex text-sm mb-8 gap-2 font-medium text-secondary">
+      <a href="/" class="transition-colors hover:text-brand">Trang chủ</a>
+      <span>/</span>
+      <a href={`/${post.categorySlug}`} class="hover:underline text-brand">
+        {post.categoryName}
+      </a>
+    </nav>
+
+    <header class="mb-10">
+      <h1 class="text-4xl md:text-5xl font-bold font-oswald leading-tight mb-6">
+        {post.title}
+      </h1>
+
+      <div
+        class="flex items-center gap-4 text-sm pb-6 text-secondary border-b border-card"
+      >
+        <span
+          class="px-3 py-1 rounded-full text-xs font-bold uppercase bg-green-500/20 text-brand"
+        >
+          {post.categoryName}
+        </span>
+        <time
+          >{
+            post.publishedAt
+              ? new Date(post.publishedAt).toLocaleDateString("vi-VN")
+              : ""
+          }</time
+        >
+      </div>
+    </header>
+
+    {
+      post.mainImage && (
+        <div class="mb-12 rounded-2xl overflow-hidden shadow-2xl border border-card">
+          <img
+            src={urlFor(post.mainImage).width(1200).url()}
+            alt={post.title}
+            class="w-full h-auto object-cover"
+          />
+        </div>
+      )
+    }
+
+    <div
+      class="p-6 md:p-10 rounded-3xl border shadow-inner bg-slate-800/30 dark:bg-slate-800/50 border-card"
+    >
+      {post.content && <PortableText value={post.content} />}
+
+      {
+        post.tags && (
+          <div class="mt-10 pt-6 flex flex-wrap gap-2 border-t border-card">
+            {post.tags.map((tag: string) => (
+              <span class="text-sm cursor-pointer transition-colors text-secondary hover:text-brand">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </article>
+</MainLayout>

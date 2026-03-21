@@ -1,0 +1,72 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+import NewsSection from "../components/NewsSection.astro"; // Import component vừa tạo
+import HotNewsSlider from "../components/HotNewsSlider.astro"; // Import component slider
+import { client } from "../lib/sanity.ts";
+import SidebarSlider from "../components/SidebarSlider.astro";
+import MatchInsights from "../components/MatchInsights.astro";
+import type { PostListItem } from "../types";
+// Query dữ liệu
+const plPosts = await client.fetch<PostListItem[]>(`
+  *[_type == "post" && category->slug.current == "ngoai-hang-anh"] | order(publishedAt desc) [0...4] {
+    title, slug, excerpt, mainImage
+  }
+`);
+
+const nhanDinhPosts = await client.fetch<PostListItem[]>(`
+  *[_type == "post" && category->slug.current == "nhan-dinh-bong-da"] | order(publishedAt desc) [0...4] {
+    title, slug, excerpt, mainImage
+  }
+`);
+
+const laLigaPosts = await client.fetch<PostListItem[]>(`
+  *[_type == "post" && category->slug.current == "tay-ban-nha"] | order(publishedAt desc) [0...4] {
+    title, slug, excerpt, mainImage
+  }
+`);
+---
+
+<MainLayout
+  title="Trang chủ"
+  description="Bongda247 - Tin tức nhận định bóng đá 24h cập nhật liên tục"
+>
+  <section>
+    <div class="container">
+      <div class="relative">
+        <div class="row">
+          <div class="col col-8">
+            <h2
+              class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4 mb-6"
+            >
+              Tin mới cập nhật
+            </h2>
+            <HotNewsSlider />
+          </div>
+          <div class="col col-4">
+            <SidebarSlider />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section>
+    <div class="container">
+      <MatchInsights />
+    </div>
+  </section>
+  <!-- <NewsSection
+    title="La Liga - Tây Ban Nha"
+    posts={laLigaPosts}
+    viewAllLink="/la-liga"
+  />
+  <NewsSection
+    title="Ngoại Hạng Anh"
+    posts={plPosts}
+    viewAllLink="/ngoai-hang-anh"
+  />
+  <NewsSection
+    title="Nhận Định"
+    posts={nhanDinhPosts}
+    viewAllLink="/nhan-dinh"
+  /> -->
+</MainLayout>

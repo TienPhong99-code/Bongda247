@@ -1,0 +1,60 @@
+---
+import { urlFor } from "../lib/sanity.ts";
+import type { PostListItem } from "../types";
+
+interface Props {
+  title: string;
+  posts: PostListItem[];
+  viewAllLink: string;
+}
+
+const { title, posts, viewAllLink } = Astro.props;
+---
+
+<section class="py-10 border-b border-card">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-hemi font-bold">
+      {title}
+    </h2>
+    <a
+      href={viewAllLink}
+      class="text-sm font-medium hover:underline text-accent">Xem tất cả →</a
+    >
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    {
+      posts.map((post) => (
+        <article class="relative group">
+          <a
+            href={`/tin-tuc/${post.slug.current}`}
+            class="absolute inset-0"
+            rel="noopener noreferrer"
+          />
+          <div class="flex flex-col">
+            <div class="overflow-hidden rounded-lg aspect-video bg-card">
+              {post.mainImage ? (
+                <img
+                  src={urlFor(post.mainImage).width(400).height(225).url()}
+                  alt={post.title}
+                  class="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div class="w-full h-full flex items-center justify-center text-muted">
+                  No Image
+                </div>
+              )}
+            </div>
+            <h3 class="mt-3 font-bold text-lg leading-tight line-clamp-2 transition-colors hover:text-accent">
+              {post.title}
+            </h3>
+            <p class="text-sm mt-2 line-clamp-2 text-secondary">
+              {post.excerpt}
+            </p>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</section>

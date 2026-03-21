@@ -1,0 +1,55 @@
+---
+// src/components/layout/Header.astro
+import ThemeToggle from "../ThemeToggle.astro";
+import LeagueTabs from "../widgets/LeagueTabs";
+import { LiveScoresTicker } from "../widgets/LiveScoresTicker.jsx";
+const navItems = [
+  { name: "Nhận định", href: "/nhan-dinh" },
+  { name: "Lịch thi đấu", href: "/lich-thi-dau" },
+  { name: "Bảng xếp hạng", href: "/bang-xep-hang" },
+];
+---
+
+<header class="fixed top-0 w-full z-50 header">
+  <div class="container mx-auto">
+    <nav>
+      <div class="flex items-center justify-between h-16">
+        <a href="/" class="flex items-center space-x-2 group">
+          <span class="font-hemi text-2xl font-bold uppercase">
+            BONGDA<span class="text-brand">247</span>
+          </span>
+        </a>
+
+        <ul class="hidden lg:flex space-x-8">
+          {
+            navItems.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand"
+                >
+                  {item.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+
+        <div class="flex items-center space-x-4">
+          <ThemeToggle />
+          <!-- <button
+          class="bg-white text-black px-5 py-2 rounded-full font-bold text-xs uppercase hover:bg-green-500 hover:text-black transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+        >
+          Đăng ký tin
+        </button> -->
+        </div>
+      </div>
+    </nav>
+  </div>
+  <div
+    class="text-black overflow-hidden whitespace-nowrap border-b border-black/10"
+  >
+    <!-- <LeagueTabs client:load /> -->
+    <!-- <LiveScoresTicker client:only="react" /> -->
+  </div>
+</header>

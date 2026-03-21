@@ -1,0 +1,230 @@
+@import "tailwindcss";
+
+@layer base {
+  @font-face {
+    font-family: "SVN-Hemi Head";
+    src: url("/font/SVN-Hemi/SVN-HemiHead.woff2") format("woff2");
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  :root {
+    --color-brand: #0232ff;
+    --color-accent: #dc2626;
+
+    /* Backgrounds */
+    --color-bg-site: #f3f3f3;
+    --color-bg-card: #ffffff;
+    --color-bg-button: #f1f5f9;
+    --color-bg-control: #fff;
+    --color-bg-prediction: #f3f3f3;
+    --color-white: #ffffff;
+
+    /* Text */
+    --color-text-main: #0e1217;
+    --color-text-secondary: #64748b;
+    --color-text-muted: #94a3b8;
+
+    /* Borders */
+    --color-border-card: #e2e8f0;
+
+    /* Backgrounds */
+    --bg-brand: var(--color-brand);
+    --bg-control: var(--color-bg-control);
+    --bg-header: #fff;
+  }
+
+  .dark {
+    --color-bg-site: #0e1217;
+    --color-bg-card: #1c1f26;
+    --color-bg-button: #1e293b;
+    --color-bg-prediction: #000000;
+    --color-bg-control: #1e293b;
+    --color-text-main: #ffffff;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #64748b;
+    --bg-header: #151e22;
+
+    --color-border-card: #1e293b;
+    --bg-brand: var(--color-brand);
+    --bg-main: var(--color-bg-site);
+  }
+
+  body {
+    background-color: var(--color-bg-site);
+    color: var(--color-text-main);
+    font-family: "Inter", sans-serif;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+    margin: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Oswald", sans-serif;
+    color: var(--color-text-main);
+  }
+
+  h1,
+  h2,
+  .font-hemi {
+    font-family: "SVN-Hemi Head", sans-serif;
+    text-transform: uppercase;
+  }
+
+  p,
+  span,
+  li {
+    color: var(--color-text-main);
+  }
+}
+
+.bg-card {
+  background-color: var(--color-bg-card);
+}
+.bg-brand {
+  background-color: var(--bg-brand);
+}
+.bg-button {
+  background-color: var(--color-bg-button);
+}
+.bg-control {
+  background-color: var(--bg-control);
+}
+
+.bg-prediction {
+  background-color: var(--color-bg-prediction);
+}
+
+.text-main {
+  color: var(--color-text-main);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.border-card {
+  border-color: var(--color-border-card);
+}
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  box-shadow: 0 2px 4px -2px #0003;
+  background: var(--bg-header);
+}
+
+.dark .header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+main {
+  padding-top: 6.4rem;
+}
+
+.container {
+  width: 1430px;
+  margin: 0 auto;
+  max-width: 100%;
+  padding: 0 1.5rem;
+}
+
+.swiper-pagination-bullet {
+  background: #fff !important;
+  opacity: 1;
+}
+
+.swiper-pagination-bullet-active {
+  background: #0232ff;
+  width: 24px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+.row {
+  --cg: 24px;
+  --rg: 24px;
+  margin: 0 calc(var(--cg) / 2 * -1) calc(var(--rg) * -1);
+}
+
+.row:not(.swiper) {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.col {
+  width: 100%;
+  padding: 0 calc(var(--cg) / 2);
+  margin-bottom: var(--rg);
+}
+
+.col-11 {
+  width: calc(11 / 12 * 100%);
+}
+
+.col-10 {
+  width: calc(10 / 12 * 100%);
+}
+
+.col-9 {
+  width: calc(9 / 12 * 100%);
+}
+
+.col-8 {
+  width: calc(8 / 12 * 100%);
+}
+
+.col-7 {
+  width: calc(7 / 12 * 100%);
+}
+
+.col-6 {
+  width: 50%;
+}
+
+.col-5 {
+  width: calc(5 / 12 * 100%);
+}
+
+.col-4 {
+  width: calc(4 / 12 * 100%);
+}
+
+.col-3 {
+  width: calc(3 / 12 * 100%);
+}
+
+.col-2 {
+  width: calc(2 / 12 * 100%);
+}
+
+.col-1 {
+  width: calc(1 / 12 * 100%);
+}
+
+.col-5i {
+  width: calc(100% / 5);
+}
+
+.col-6i {
+  width: calc(100% / 6);
+}
+
+.col-4i {
+  width: calc(100% / 4);
+}
+
+.swiper.row {
+  --rg: 0;
+  margin: 0 calc(var(--cg) / 2 * -1);
+}

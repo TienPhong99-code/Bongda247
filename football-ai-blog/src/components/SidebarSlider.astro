@@ -1,0 +1,88 @@
+---
+import { client, urlFor } from "../lib/sanity.ts";
+import type { SliderPost } from "../types";
+
+const sidebarPosts = await client.fetch<SliderPost[]>(`
+  *[_type == "post"] | order(publishedAt desc)[0...10] {
+    title,
+    "slug": slug.current,
+    mainImage,
+    "categoryName": category->title,
+    "categorySlug": category->slug.current
+  }
+`);
+---
+
+<aside class="flex h-full flex-col">
+  <h2
+    class="font-hemi text-lg uppercase mb-4 text-brand flex items-center gap-2"
+  >
+    <span class="w-2 h-2 bg-brand rounded-full animate-pulse"></span>
+    Tin mới nhận
+  </h2>
+  <div class="flex-1 relative overflow-hidden">
+    <div class="inset-0 absolute">
+      <div class="swiper sidebarSwiper h-full">
+        <div class="swiper-wrapper">
+          {
+            sidebarPosts.map((post) => (
+              <div class="swiper-slide h-auto!">
+                <article class="group flex gap-4 rounded-lg bg-card p-3 border border-card">
+                  <a
+                    href={`/${post.categorySlug}/${post.slug}`}
+                    class="absolute inset-0 z-2"
+                  />
+                  <div class="flex gap-3 group">
+                    <div class="w-20 h-20 shrink-0 overflow-hidden rounded-lg bg-slate-800">
+                      {post.mainImage ? (
+                        <img
+                          src={urlFor(post.mainImage)
+                            .width(200)
+                            .height(200)
+                            .url()}
+                          alt={post.title}
+                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div class="w-full h-full flex items-center justify-center bg-slate-900 border border-slate-800">
+                          <span class="text-[10px] font-hemi text-white">
+                            BONGDA247
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div class="flex flex-col justify-center">
+                      <span class="text-[9px] font-bold text-brand uppercase mb-1">
+                        {post.categoryName}
+                      </span>
+                      <h3 class="text-xl leading-snug group-hover:text-brand transition-colors line-clamp-2">
+                        {post.title}
+                      </h3>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script>
+  import Swiper from "swiper";
+  import { Autoplay, Mousewheel } from "swiper/modules";
+
+  new Swiper(".sidebarSwiper", {
+    modules: [Autoplay, Mousewheel],
+    direction: "vertical", // Trượt dọc theo ý Văn
+    slidesPerView: "auto", // Hiển thị 5 tin cùng lúc
+    spaceBetween: 10,
+    mousewheel: true, // Cho phép dùng con lăn chuột để lướt tin
+    autoplay: {
+      delay: 5000,
+      disableOnInteraction: false,
+    },
+  });
+</script>
