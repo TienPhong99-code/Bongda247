@@ -542,8 +542,7 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
       } catch (e) {
         await bot.telegram.sendMessage(
           targetChatId,
-          `⚠️ Lỗi tạo nhận định *${match.homeTeam?.name}* vs *${match.awayTeam?.name}*: ${e.message}`,
-          { parse_mode: "Markdown" }
+          `⚠️ Lỗi tạo nhận định ${match.homeTeam?.name} vs ${match.awayTeam?.name}: ${e.message}`
         );
       }
     }
