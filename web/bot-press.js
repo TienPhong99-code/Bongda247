@@ -898,7 +898,7 @@ bot.on("callback_query", async (ctx) => {
     draftStore.set(draftId, draft);
 
     const leagueInfo = LEAGUE_MAP[draft.leagueCode] ?? {};
-    const header = leagueInfo.flag ? `${leagueInfo.flag} *[${leagueInfo.name}]*\n` : "";
+    const header = leagueInfo.flag ? `${leagueInfo.flag} *${escapeMd(leagueInfo.name)}*\n` : "";
     try {
       await ctx.editMessageText(header + buildInsightText(draft), {
         parse_mode: "Markdown",
