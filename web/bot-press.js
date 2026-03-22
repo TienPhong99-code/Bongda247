@@ -48,11 +48,11 @@ const FD_HEADERS = { "X-Auth-Token": process.env.PUBLIC_FOOTBALL_DATA_KEY };
 // Map mã giải → Sanity slug + thông tin hiển thị
 const LEAGUE_MAP = {
   PL:  { slug: "ngoai-hang-anh",   name: "Ngoại hạng Anh",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  CL:  { slug: "champions-league", name: "Champions League", flag: "⭐"          },
-  PD:  { slug: "la-liga",          name: "La Liga",          flag: "🇪🇸"         },
-  BL1: { slug: "bundesliga",       name: "Bundesliga",       flag: "🇩🇪"         },
-  SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹"         },
-  FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷"         },
+  // CL:  { slug: "champions-league", name: "Champions League", flag: "⭐"          },
+  // PD:  { slug: "la-liga",          name: "La Liga",          flag: "🇪🇸"         },
+  // BL1: { slug: "bundesliga",       name: "Bundesliga",       flag: "🇩🇪"         },
+  // SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹"         },
+  // FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷"         },
 };
 
 // Chuyển utcDate → "HH:mm - DD/MM" (múi giờ Việt Nam)
@@ -631,6 +631,20 @@ bot.command("posts", async (ctx) => {
     }
   } catch (e) {
     ctx.reply("❌ Lỗi: " + e.message);
+  }
+});
+
+bot.command("testapi", async (ctx) => {
+  await ctx.reply("🔍 Đang test football-data.org...");
+  try {
+    const res = await axios.get(`${FD_BASE}/competitions/PL/matches`, {
+      headers: FD_HEADERS,
+      params: { dateFrom: "2026-03-22", dateTo: "2026-03-22" },
+      timeout: 15000,
+    });
+    await ctx.reply(`✅ OK — status ${res.status}, ${res.data.matches?.length ?? 0} matches`);
+  } catch (e) {
+    await ctx.reply(`❌ Lỗi: ${e.message}\nCode: ${e.code ?? "N/A"}\nStatus: ${e.response?.status ?? "N/A"}`);
   }
 });
 
