@@ -23,5 +23,8 @@ export default {
       ],
     },
     {name: 'publishedAt', title: 'Ngày đăng', type: 'datetime'},
+    {name: 'hashtags', title: 'Hashtags', type: 'array', of: [{type: 'string'}]},
+    {name: 'sourceUrl', title: 'Link nguồn gốc', type: 'url'},
+    {name: 'sourceCredit', title: 'Nguồn (VD: Sky Sports)', type: 'string'},
   ],
 }

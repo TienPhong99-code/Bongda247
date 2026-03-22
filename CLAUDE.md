@@ -34,6 +34,7 @@ Dự án gồm **2 ứng dụng chính**:
 | @google/generative-ai | 0.2.1 | AI (Google Gemini) |
 | Telegraf | 4.16.3 | Telegram bot |
 | Axios | 1.13.6 | HTTP client |
+| rss-parser | latest | Parse RSS feeds |
 
 ### Backend/CMS (`cms/`)
 | Công nghệ | Version | Mục đích |
@@ -121,9 +122,10 @@ cms/
 | Service | Mục đích |
 |---------|----------|
 | Sanity.io | CMS — Lưu bài viết, danh mục, nhận định trận |
-| API-Football (api-football.com) | Real-time match data, standings, H2H, team fixtures |
-| Google Gemini 2.5 Flash | AI tạo phân tích và dự đoán trận đấu |
-| Telegram Bot | Phân phối nội dung tự động |
+| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint |
+| Google Gemini 2.5 Flash | AI tạo phân tích, nhận định, viết lại bài RSS |
+| Telegram Bot | Phân phối nội dung tự động + kiểm duyệt |
+| RSS Feeds | Sky Sports, BBC Sport, Bóng Đá Plus — nguồn tin tức tự động |
 | Google AdSense | Quảng cáo |
 
 **Sanity config**: Project ID `wwpnye2x`, Dataset `production`
@@ -244,19 +246,41 @@ node bot-press.js
 ### Luồng 4 — DAILY AUTO PREVIEW (tự động)
 **Trigger:** Cron 8:00 sáng giờ Việt Nam (chạy trên Railway)
 
-1. Gọi API-Football lấy lịch thi đấu hôm nay
-2. Lọc 6 giải: PL, CL, PD, BL1, SA, FL1 — tối đa 3 trận/giải
-3. Gọi API lấy BXH thực tế từng giải (hạng, điểm, W/D/L, phong độ 5 trận)
-4. Gọi API lấy H2H (10 trận) + form đội nhà (10 trận) + form đội khách (10 trận)
-5. Tính Over 2.5, BTTS, clean sheet theo sân nhà/sân khách/tổng
-6. Gemini tạo nhận định với số liệu thực (VD: "BTTS sân khách - 4/5 trận cuối")
+1. Gọi football-data.org per-competition: `GET /v4/competitions/{code}/matches?dateFrom=&dateTo=`
+2. Lọc giải theo `LEAGUE_MAP` (hiện chỉ PL, các giải khác comment out) — tối đa 3 trận/giải
+3. Gọi `GET /v4/competitions/{code}/standings` lấy BXH thực tế từng giải
+4. Gemini tạo nhận định dựa trên BXH (hạng, điểm, W/D/L, form)
 5. Gửi từng trận về Telegram (chat ID owner) với nút:
    - `🔄 Đổi HOT` — toggle, chưa đăng
    - `✅ Đăng lên Slide` → tạo `matchInsight` (lưu `matchDate` = giờ UTC thực tế)
    - `⏭ Bỏ qua`
 
-**Data thật từ API:** hạng BXH, điểm, W/D/L, form, H2H 10 trận, Over 2.5 / BTTS / clean sheet theo sân
+**Data thật từ API:** hạng BXH, điểm, W/D/L, form
 **Data AI tạo:** nhận định chiến thuật, dự đoán tỉ số
+
+**Giới hạn free plan football-data.org:**
+- Chỉ có Fixtures + League Tables (không có H2H, team fixtures)
+- Phải fetch per-competition (không có global `/matches` endpoint)
+- 10 req/min → delay 7s giữa mỗi request
+- timeout 15s (Railway cần nhiều hơn 10s)
+
+### Luồng 5 — RSS NEWS PIPELINE (tự động)
+**Trigger:** Cron 7h, 13h, 20h mỗi ngày
+
+1. `fetchRSSFeeds()` — fetch 4 nguồn: Sky Sports PL, Sky Sports Football, BBC Sport, Bóng Đá Plus
+2. `filterAndRankArticles()` — lọc bài mới (< 6h), có từ khóa liên quan, loại URL đã xử lý
+3. Chấm điểm → lấy top 2 bài mỗi lần chạy
+4. `extractOgImage()` — scrape og:image nếu RSS không có ảnh
+5. `generateNewsPost()` — Gemini viết lại hoàn toàn tiếng Việt, chuẩn SEO (KHÔNG dịch thẳng)
+6. Gửi Telegram preview với ảnh: **✅ Đăng bài** / **⏭ Bỏ qua**
+7. Duyệt → upload ảnh lên Sanity → tạo `post` với `sourceUrl` + `sourceCredit`
+8. `processedUrls` Set reset lúc 0h mỗi ngày
+
+**RSS Sources:**
+- Sky Sports PL: `https://www.skysports.com/rss/12040`
+- Sky Sports Football: `https://www.skysports.com/rss/12006`
+- BBC Sport: `https://feeds.bbci.co.uk/sport/football/rss.xml`
+- Bóng Đá Plus: `https://bongdaplus.vn/rss/tin-tuc.rss`
 
 ### Auto Cleanup
 - **07:55 sáng** — xóa tự động tất cả `matchInsight` có `matchDate < (now - 3h)`
@@ -268,6 +292,7 @@ node bot-press.js
 |------|-----------|
 | `/preview` | Nhận định trận hôm nay (kích hoạt thủ công) |
 | `/tomorrow` | Nhận định trận ngày mai |
+| `/fetchnews` | Fetch tin tức mới từ RSS (kích hoạt thủ công) |
 | `/list` | Xem & xóa 10 insight đang hiển thị |
 | `/posts` | Xem & xóa 8 bài viết gần nhất |
 | `/reload` | Tải lại danh mục từ Sanity |

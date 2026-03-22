@@ -6,6 +6,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@sanity/client";
 import axios from "axios";
 import cron from "node-cron";
+import RssParser from "rss-parser";
 
 // ============================================================
 // 1. KHỞI TẠO
@@ -187,6 +188,8 @@ const mediaGroupStorage = new Map(); // groupId → { photos: [], caption: null 
 const mediaGroupTimers = new Map();  // groupId → timer
 const pendingPosts = new Map();      // chatId → post đang chờ xác nhận
 const draftStore = new Map();        // draftId → bản nháp nhận định từ AI
+const newsDraftStore = new Map();    // ndId → { article, generatedPost, categoryId }
+const processedUrls = new Set();     // URL bài đã xử lý — reset lúc 0h mỗi ngày
 
 // ============================================================
 // 5. HELPER FUNCTIONS
@@ -539,6 +542,7 @@ bot.start((ctx) =>
       "📋 *Lệnh:*\n" +
       "/preview — Nhận định trận hôm nay\n" +
       "/tomorrow — Nhận định trận ngày mai\n" +
+      "/fetchnews — Fetch tin tức mới từ RSS\n" +
       "/list — Xem & xóa insights đang hiển thị\n" +
       "/posts — Xem & xóa bài viết gần đây\n" +
       "/reload — Tải lại danh mục từ Sanity",
@@ -630,6 +634,11 @@ bot.command("posts", async (ctx) => {
   } catch (e) {
     ctx.reply("❌ Lỗi: " + e.message);
   }
+});
+
+bot.command("fetchnews", async (ctx) => {
+  await ctx.reply("📰 Đang fetch tin tức mới...");
+  runNewsFetch().catch((e) => ctx.reply("❌ Lỗi fetch news: " + e.message));
 });
 
 bot.command("testapi", async (ctx) => {
@@ -882,11 +891,283 @@ bot.on("callback_query", async (ctx) => {
     } catch {
       ctx.answerCbQuery("❌ Lỗi xóa.");
     }
+    return;
+  }
+
+  // --- Duyệt đăng bài từ RSS ---
+  if (action.startsWith("ndapprove_")) {
+    const ndId = action.replace("ndapprove_", "");
+    const draft = newsDraftStore.get(ndId);
+    if (!draft) return ctx.answerCbQuery("❌ Bản nháp hết hạn!");
+
+    ctx.answerCbQuery("🚀 Đang đăng bài...");
+    try {
+      const { article, generatedPost, categoryId } = draft;
+
+      // Upload ảnh lên Sanity nếu có
+      const assetId = article.imageUrl ? await uploadImageFromUrl(article.imageUrl) : null;
+
+      await sanity.create({
+        _type: "post",
+        title: generatedPost.title,
+        slug: { _type: "slug", current: `${createSlug(generatedPost.title)}-${Date.now()}` },
+        mainImage: assetId
+          ? { _type: "image", asset: { _type: "reference", _ref: assetId } }
+          : undefined,
+        excerpt: generatedPost.excerpt,
+        content: buildPortableText(generatedPost.sections || [], []),
+        category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
+        hashtags: generatedPost.hashtags ?? [],
+        sourceUrl: article.url,
+        sourceCredit: article.source,
+        publishedAt: new Date().toISOString(),
+      });
+
+      ctx.editMessageCaption
+        ? await ctx.editMessageCaption(
+            `✅ *Đã xuất bản!*\n\n📰 ${generatedPost.title}\n📎 Nguồn: ${article.source}`,
+            { parse_mode: "Markdown" }
+          )
+        : await ctx.editMessageText(
+            `✅ *Đã xuất bản!*\n\n📰 ${generatedPost.title}\n📎 Nguồn: ${article.source}`,
+            { parse_mode: "Markdown" }
+          );
+
+      newsDraftStore.delete(ndId);
+    } catch (e) {
+      ctx.answerCbQuery("❌ Lỗi: " + e.message);
+    }
+    return;
+  }
+
+  // --- Bỏ qua bài RSS ---
+  if (action.startsWith("ndskip_")) {
+    const ndId = action.replace("ndskip_", "");
+    newsDraftStore.delete(ndId);
+    ctx.answerCbQuery("⏭ Đã bỏ qua");
+    try {
+      ctx.editMessageCaption
+        ? await ctx.editMessageCaption("⏭ Bỏ qua.")
+        : await ctx.editMessageText("⏭ Bỏ qua.");
+    } catch { /* ignore */ }
+    return;
   }
 });
 
 // ============================================================
-// 14. CRON JOBS
+// 14. RSS NEWS PIPELINE
+// ============================================================
+
+const RSS_SOURCES = [
+  { url: "https://www.skysports.com/rss/12040", name: "Sky Sports", lang: "en" },
+  { url: "https://www.skysports.com/rss/12006", name: "Sky Sports", lang: "en" },
+  { url: "https://feeds.bbci.co.uk/sport/football/rss.xml", name: "BBC Sport", lang: "en" },
+  { url: "https://bongdaplus.vn/rss/tin-tuc.rss", name: "Bóng Đá Plus", lang: "vi" },
+];
+
+const NEWS_KEYWORDS = [
+  "premier league", "champions league", "la liga", "bundesliga", "serie a", "ligue 1",
+  "arsenal", "chelsea", "man city", "manchester city", "man united", "manchester united",
+  "liverpool", "tottenham", "newcastle", "aston villa",
+  "real madrid", "barcelona", "atletico", "bayern", "dortmund",
+  "juventus", "milan", "inter", "psg",
+  "ngoại hạng anh", "bóng đá", "transfer", "chuyển nhượng",
+];
+
+const rssParser = new RssParser({
+  customFields: {
+    item: [["media:thumbnail", "mediaThumbnail"], ["media:content", "mediaContent"]],
+  },
+  headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
+  timeout: 10000,
+});
+
+async function fetchRSSFeeds() {
+  const allItems = [];
+  for (const source of RSS_SOURCES) {
+    try {
+      const feed = await rssParser.parseURL(source.url);
+      for (const item of feed.items ?? []) {
+        const imageUrl =
+          item.mediaThumbnail?.$.url ||
+          item.mediaContent?.$.url ||
+          item.enclosure?.url ||
+          null;
+        allItems.push({
+          title: item.title ?? "",
+          description: item.contentSnippet || item.content || item.summary || "",
+          url: item.link ?? item.guid ?? "",
+          imageUrl,
+          pubDate: item.pubDate ? new Date(item.pubDate) : new Date(),
+          source: source.name,
+          lang: source.lang,
+        });
+      }
+      console.log(`📰 ${source.name}: ${feed.items?.length ?? 0} items`);
+    } catch (e) {
+      console.warn(`⚠️ RSS ${source.name} lỗi: ${e.message}`);
+    }
+  }
+  return allItems;
+}
+
+async function extractOgImage(url) {
+  try {
+    const res = await axios.get(url, {
+      timeout: 8000,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
+    });
+    const match =
+      res.data.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+      res.data.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function filterAndRankArticles(items) {
+  const now = Date.now();
+  const SIX_HOURS = 6 * 60 * 60 * 1000;
+  return items
+    .filter((item) => {
+      if (!item.url || processedUrls.has(item.url)) return false;
+      if (now - item.pubDate.getTime() > SIX_HOURS) return false;
+      const text = (item.title + " " + item.description).toLowerCase();
+      return NEWS_KEYWORDS.some((kw) => text.includes(kw));
+    })
+    .map((item) => {
+      const text = (item.title + " " + item.description).toLowerCase();
+      let score = now - item.pubDate.getTime() < 2 * 60 * 60 * 1000 ? 2 : 1;
+      if (item.imageUrl) score += 1;
+      const highValue = ["premier league", "champions league", "ngoại hạng anh", "arsenal", "liverpool", "man city"];
+      if (highValue.some((kw) => text.includes(kw))) score += 2;
+      return { ...item, score };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+async function generateNewsPost(article) {
+  const availableSlugs = Object.keys(CATEGORIES).join(", ");
+  const prompt = `Bạn là biên tập viên bóng đá chuyên nghiệp viết tiếng Việt chuẩn SEO.
+Dựa trên thông tin bài gốc dưới đây, hãy VIẾT LẠI HOÀN TOÀN bằng tiếng Việt — KHÔNG dịch thẳng, KHÔNG copy.
+Thêm phân tích, góc nhìn, bối cảnh phù hợp độc giả Việt Nam.
+
+TIÊU ĐỀ GỐC: ${article.title}
+NỘI DUNG GỐC: ${article.description}
+NGUỒN: ${article.source}
+
+Yêu cầu:
+- Tiêu đề mới hấp dẫn, có từ khóa SEO, tiếng Việt
+- excerpt 1–2 câu tóm tắt
+- 3 sections, mỗi section: heading h2 + đoạn text 80–120 từ tiếng Việt
+- Chọn "league" từ danh sách: [${availableSlugs}]
+- 3–5 hashtags liên quan
+
+Trả về DUY NHẤT JSON hợp lệ:
+{
+  "title": "...",
+  "excerpt": "...",
+  "league": "slug-giai-dau",
+  "sections": [{ "heading": "...", "text": "..." }],
+  "hashtags": ["...", "..."]
+}`;
+  const result = await model.generateContent(prompt);
+  return parseAIJson(result.response.text());
+}
+
+async function uploadImageFromUrl(imageUrl) {
+  try {
+    const res = await axios.get(imageUrl, {
+      responseType: "arraybuffer",
+      timeout: 10000,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
+    });
+    const asset = await sanity.assets.upload("image", Buffer.from(res.data), {
+      filename: `news-${Date.now()}.jpg`,
+    });
+    return asset._id;
+  } catch {
+    return null;
+  }
+}
+
+async function sendNewsPreview(ndId, article, generatedPost) {
+  const categoryTitle = CATEGORIES[generatedPost.league]?.title ?? generatedPost.league;
+  const age = Math.round((Date.now() - article.pubDate.getTime()) / 60000);
+  const ageText = age < 60 ? `${age} phút trước` : `${Math.round(age / 60)} giờ trước`;
+
+  const caption =
+    `🗞 <b>${escapeHtml(generatedPost.title)}</b>\n\n` +
+    `📌 <i>${escapeHtml(generatedPost.excerpt)}</i>\n\n` +
+    `🏆 ${escapeHtml(categoryTitle)}  •  🕐 ${ageText}\n` +
+    `📎 Nguồn: ${escapeHtml(article.source)}`;
+
+  const keyboard = {
+    inline_keyboard: [
+      [{ text: "✅ Đăng bài", callback_data: `ndapprove_${ndId}` }],
+      [{ text: "⏭ Bỏ qua", callback_data: `ndskip_${ndId}` }],
+    ],
+  };
+
+  try {
+    if (article.imageUrl) {
+      await bot.telegram.sendPhoto(OWNER_CHAT_ID, article.imageUrl, {
+        caption,
+        parse_mode: "HTML",
+        reply_markup: keyboard,
+      });
+    } else {
+      await bot.telegram.sendMessage(OWNER_CHAT_ID, caption, {
+        parse_mode: "HTML",
+        reply_markup: keyboard,
+      });
+    }
+  } catch {
+    // Ảnh URL lỗi → fallback gửi text
+    await bot.telegram.sendMessage(OWNER_CHAT_ID, caption, {
+      parse_mode: "HTML",
+      reply_markup: keyboard,
+    });
+  }
+}
+
+async function runNewsFetch() {
+  if (!OWNER_CHAT_ID) return;
+  console.log("📰 Cron: Fetch RSS news...");
+  try {
+    const items = await fetchRSSFeeds();
+    const ranked = filterAndRankArticles(items);
+
+    if (!ranked.length) {
+      console.log("📭 Không có bài mới phù hợp.");
+      return;
+    }
+
+    const selected = ranked.slice(0, 2);
+    for (const article of selected) {
+      processedUrls.add(article.url);
+      if (!article.imageUrl) {
+        article.imageUrl = await extractOgImage(article.url);
+      }
+      try {
+        const generatedPost = await generateNewsPost(article);
+        const categoryId = getCategoryId(generatedPost.league);
+        const ndId = `nd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        newsDraftStore.set(ndId, { article, generatedPost, categoryId });
+        await sendNewsPreview(ndId, article, generatedPost);
+        await delay(2000);
+      } catch (e) {
+        console.warn(`⚠️ Lỗi xử lý bài "${article.title}": ${e.message}`);
+      }
+    }
+  } catch (e) {
+    console.error("❌ runNewsFetch lỗi:", e.message);
+  }
+}
+
+// ============================================================
+// 15. CRON JOBS
 // ============================================================
 
 // 8:00 sáng — gửi nhận định hàng ngày
@@ -895,6 +1176,37 @@ cron.schedule(
   () => {
     console.log("⏰ Cron: Chạy daily preview...");
     runDailyPreview(OWNER_CHAT_ID, 0);
+  },
+  { timezone: "Asia/Ho_Chi_Minh" }
+);
+
+// 7:00 sáng — fetch tin tức buổi sáng (chuyển nhượng, preview)
+cron.schedule(
+  "0 7 * * *",
+  () => runNewsFetch(),
+  { timezone: "Asia/Ho_Chi_Minh" }
+);
+
+// 13:00 trưa — fetch tin tức buổi trưa
+cron.schedule(
+  "0 13 * * *",
+  () => runNewsFetch(),
+  { timezone: "Asia/Ho_Chi_Minh" }
+);
+
+// 20:00 tối — fetch tin tức sau trận (match report)
+cron.schedule(
+  "0 20 * * *",
+  () => runNewsFetch(),
+  { timezone: "Asia/Ho_Chi_Minh" }
+);
+
+// 0:00 — reset danh sách URL đã xử lý
+cron.schedule(
+  "0 0 * * *",
+  () => {
+    processedUrls.clear();
+    console.log("🔄 Reset processedUrls");
   },
   { timezone: "Asia/Ho_Chi_Minh" }
 );
