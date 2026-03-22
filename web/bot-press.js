@@ -188,8 +188,9 @@ const mediaGroupStorage = new Map(); // groupId → { photos: [], caption: null 
 const mediaGroupTimers = new Map();  // groupId → timer
 const pendingPosts = new Map();      // chatId → post đang chờ xác nhận
 const draftStore = new Map();        // draftId → bản nháp nhận định từ AI
-const newsDraftStore = new Map();    // ndId → { article, generatedPost, categoryId }
-const processedUrls = new Set();     // URL bài đã xử lý — reset lúc 0h mỗi ngày
+const newsDraftStore = new Map();        // ndId → { article, generatedPost, categoryId }
+const matchArticleDraftStore = new Map(); // maId → { data, categoryId }
+const processedUrls = new Set();         // URL bài đã xử lý — reset lúc 0h mỗi ngày
 
 // ============================================================
 // 5. HELPER FUNCTIONS
@@ -238,12 +239,13 @@ function buildDraftKeyboard(draftId, hot) {
     inline_keyboard: [
       [{ text: `🔄 Đổi HOT (Hiện: ${hotStatus})`, callback_data: `dtoggle_${draftId}` }],
       [{ text: "✅ Đăng lên Slide", callback_data: `dapprove_${draftId}` }],
+      [{ text: "📝 Tạo bài nhận định", callback_data: `maarticle_gen_${draftId}` }],
       [{ text: "⏭ Bỏ qua", callback_data: `dskip_${draftId}` }],
     ],
   };
 }
 
-function buildPortableText(sections, assetIds) {
+function buildPortableText(sections, assetIds, imageAlt = "") {
   return sections.flatMap((section, i) => {
     const blocks = [
       {
@@ -266,6 +268,7 @@ function buildPortableText(sections, assetIds) {
         _type: "image",
         _key: `img-${i}-${Date.now()}`,
         asset: { _type: "reference", _ref: assetIds[i + 1] },
+        alt: imageAlt || section.heading,
       });
     }
     return blocks;
@@ -342,6 +345,65 @@ Trả về DUY NHẤT JSON hợp lệ:
     leagueName: leagueInfo.name,
     leagueFlag: leagueInfo.flag,
     matchDate: match.utcDate, // ISO datetime thực tế — dùng để auto-delete
+  };
+}
+
+async function generateMatchArticle(match, standings = {}) {
+  const leagueInfo = LEAGUE_MAP[match.leagueCode];
+  const homeTeam = match.homeTeam?.name ?? "Đội nhà";
+  const awayTeam = match.awayTeam?.name ?? "Đội khách";
+  const matchTime = formatMatchTime(match.utcDate);
+
+  const homeStanding = standings[match.homeTeam?.id];
+  const awayStanding = standings[match.awayTeam?.id];
+  const formatStanding = (s, name) =>
+    s
+      ? `${name}: Hạng ${s.position}, ${s.points}đ (${s.won}W-${s.draw}D-${s.lost}L), form: ${s.form}`
+      : `${name}: không có dữ liệu BXH`;
+
+  const prompt = `Bạn là biên tập viên bóng đá chuyên nghiệp, viết tiếng Việt chuẩn SEO.
+Viết bài nhận định đầy đủ cho trận: ${homeTeam} vs ${awayTeam} | ${leagueInfo.name} | ${matchTime}
+
+DỮ LIỆU THỰC TẾ (dùng số liệu này, KHÔNG bịa):
+- ${formatStanding(homeStanding, homeTeam)}
+- ${formatStanding(awayStanding, awayTeam)}
+
+Cấu trúc bài gồm ĐÚNG 6 sections theo thứ tự:
+1. heading: "Bối cảnh trận ${homeTeam} vs ${awayTeam}" — giới thiệu ý nghĩa trận, thời gian, vòng đấu, điều gì đang bị đặt cược (150–200 từ)
+2. heading: "Phong độ ${homeTeam}" — phân tích dựa trên BXH thực tế: hạng, điểm, chuỗi trận, điểm mạnh/yếu (150–200 từ)
+3. heading: "Phong độ ${awayTeam}" — tương tự đội khách (150–200 từ)
+4. heading: "Lịch sử đối đầu" — các lần gặp nhau gần đây, xu hướng, kết quả đáng chú ý (150–200 từ)
+5. heading: "Lực lượng & Đội hình dự kiến" — cầu thủ vắng mặt, chấn thương, đội hình dự kiến ra sân (150–200 từ)
+6. heading: "Nhận định & Dự đoán tỉ số" — phân tích tổng hợp, lý do, dự đoán kết quả (150–200 từ)
+
+Yêu cầu khác:
+- title SEO 50–60 ký tự, có tên 2 đội
+- excerpt 150–160 ký tự hấp dẫn
+- prediction: tỉ số dự đoán kèm lý do ngắn
+- 3–5 hashtags
+- mainPlayer: cầu thủ tiếng Anh nổi bật nhất (để trống "" nếu không rõ)
+- mainTeam: đội bóng tiếng Anh nổi bật nhất
+
+Trả về DUY NHẤT JSON hợp lệ:
+{
+  "title": "...",
+  "excerpt": "...",
+  "sections": [{ "heading": "...", "text": "..." }],
+  "prediction": "...",
+  "hashtags": ["..."],
+  "mainPlayer": "...",
+  "mainTeam": "..."
+}`;
+
+  const result = await model.generateContent(prompt);
+  const data = parseAIJson(result.response.text());
+  return {
+    ...data,
+    leagueSlug: leagueInfo.slug,
+    leagueName: leagueInfo.name,
+    homeTeam,
+    awayTeam,
+    matchTime,
   };
 }
 
@@ -868,6 +930,102 @@ bot.on("callback_query", async (ctx) => {
     return;
   }
 
+  // --- Tạo bài nhận định từ card matchInsight ---
+  if (action.startsWith("maarticle_gen_")) {
+    const draftId = action.replace("maarticle_gen_", "");
+    const draft = draftStore.get(draftId);
+    if (!draft) return ctx.answerCbQuery("❌ Bản nháp hết hạn!");
+
+    ctx.answerCbQuery("⏳ Đang tạo bài nhận định...");
+    try {
+      // Dựng lại match object từ draft để gọi generateMatchArticle
+      const matchFromDraft = {
+        leagueCode: draft.leagueCode,
+        homeTeam: { id: null, name: draft.homeTeam },
+        awayTeam: { id: null, name: draft.awayTeam },
+        utcDate: draft.matchDate ?? new Date().toISOString(),
+      };
+      const standingsFromDraft = {}; // BXH không lưu trong draft, Gemini dùng kiến thức
+
+      const articleData = await generateMatchArticle(matchFromDraft, standingsFromDraft);
+      const maId = `ma_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const maCategoryId = getCategoryId(articleData.leagueSlug);
+      matchArticleDraftStore.set(maId, { data: articleData, categoryId: maCategoryId });
+
+      await bot.telegram.sendMessage(
+        ctx.chat.id,
+        `📝 <b>${escapeHtml(articleData.title)}</b>\n\n` +
+        `📌 <i>${escapeHtml(articleData.excerpt)}</i>\n\n` +
+        `🎯 <b>Dự đoán:</b> ${escapeHtml(articleData.prediction)}\n` +
+        `🏆 ${escapeHtml(articleData.leagueName)}`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "✅ Đăng bài nhận định", callback_data: `maarticle_approve_${maId}` }],
+              [{ text: "⏭ Bỏ qua", callback_data: `maarticle_skip_${maId}` }],
+            ],
+          },
+        }
+      );
+    } catch (e) {
+      await bot.telegram.sendMessage(ctx.chat.id, `❌ Lỗi tạo bài: ${e.message}`);
+    }
+    return;
+  }
+
+  // --- Duyệt đăng bài nhận định ---
+  if (action.startsWith("maarticle_approve_")) {
+    const maId = action.replace("maarticle_approve_", "");
+    const draft = matchArticleDraftStore.get(maId);
+    if (!draft) return ctx.answerCbQuery("❌ Bản nháp hết hạn!");
+
+    ctx.answerCbQuery("🚀 Đang đăng bài...");
+    try {
+      const { data, categoryId } = draft;
+
+      // Ảnh TheSportsDB chèn vào giữa bài (sau section 0)
+      const sportsDbLabel = data.mainPlayer || data.mainTeam || data.title;
+      let sportsDbImageUrl = null;
+      if (data.mainPlayer) sportsDbImageUrl = await fetchPlayerImage(data.mainPlayer);
+      if (!sportsDbImageUrl && data.mainTeam) sportsDbImageUrl = await fetchTeamImage(data.mainTeam);
+      const sportsDbAssetId = sportsDbImageUrl
+        ? await uploadImageFromUrl(sportsDbImageUrl, sportsDbLabel)
+        : null;
+
+      const contentAssetIds = sportsDbAssetId ? [null, sportsDbAssetId] : [];
+
+      await sanity.create({
+        _type: "post",
+        title: data.title,
+        slug: { _type: "slug", current: `${createSlug(data.title)}-${Date.now()}` },
+        excerpt: data.excerpt,
+        content: buildPortableText(data.sections || [], contentAssetIds, sportsDbLabel),
+        category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
+        hashtags: data.hashtags ?? [],
+        publishedAt: new Date().toISOString(),
+      });
+
+      ctx.editMessageText(
+        `✅ *Đã xuất bản!*\n\n📰 ${data.title}\n🎯 ${data.prediction}`,
+        { parse_mode: "Markdown" }
+      );
+      matchArticleDraftStore.delete(maId);
+    } catch (e) {
+      ctx.answerCbQuery("❌ Lỗi: " + e.message);
+    }
+    return;
+  }
+
+  // --- Bỏ qua bài nhận định ---
+  if (action.startsWith("maarticle_skip_")) {
+    const maId = action.replace("maarticle_skip_", "");
+    matchArticleDraftStore.delete(maId);
+    ctx.answerCbQuery("⏭ Đã bỏ qua");
+    try { ctx.editMessageText("⏭ Bỏ qua."); } catch { /* ignore */ }
+    return;
+  }
+
   // --- Xóa Insight đã đăng ---
   if (action.startsWith("delete_insight_")) {
     const id = action.replace("delete_insight_", "");
@@ -904,8 +1062,18 @@ bot.on("callback_query", async (ctx) => {
     try {
       const { article, generatedPost, categoryId } = draft;
 
-      // Upload ảnh lên Sanity nếu có
-      const assetId = article.imageUrl ? await uploadImageFromUrl(article.imageUrl) : null;
+      // Upload ảnh thumbnail (og:image / RSS) → mainImage
+      const assetId = article.imageUrl
+        ? await uploadImageFromUrl(article.imageUrl, generatedPost.title)
+        : null;
+
+      // Upload ảnh TheSportsDB → chèn vào content sau section đầu tiên
+      const sportsDbLabel = generatedPost.mainPlayer || generatedPost.mainTeam || generatedPost.title;
+      const sportsDbAssetId = article.sportsDbImageUrl
+        ? await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel)
+        : null;
+      // assetIds[0] = unused, assetIds[1] = sau section 0
+      const contentAssetIds = sportsDbAssetId ? [null, sportsDbAssetId] : [];
 
       await sanity.create({
         _type: "post",
@@ -915,7 +1083,7 @@ bot.on("callback_query", async (ctx) => {
           ? { _type: "image", asset: { _type: "reference", _ref: assetId } }
           : undefined,
         excerpt: generatedPost.excerpt,
-        content: buildPortableText(generatedPost.sections || [], []),
+        content: buildPortableText(generatedPost.sections || [], contentAssetIds, sportsDbLabel),
         category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
         hashtags: generatedPost.hashtags ?? [],
         sourceUrl: article.url,
@@ -1058,11 +1226,14 @@ NỘI DUNG GỐC: ${article.description}
 NGUỒN: ${article.source}
 
 Yêu cầu:
-- Tiêu đề mới hấp dẫn, có từ khóa SEO, tiếng Việt
-- excerpt 1–2 câu tóm tắt
-- 3 sections, mỗi section: heading h2 + đoạn text 80–120 từ tiếng Việt
+- Tiêu đề mới hấp dẫn, có từ khóa SEO, tiếng Việt, 50–60 ký tự
+- excerpt 150–160 ký tự, tóm tắt hấp dẫn có từ khóa
+- 5 sections, mỗi section: heading h2 chứa từ khóa phụ + đoạn text 150–200 từ tiếng Việt
+- Thêm phân tích chuyên sâu, số liệu, bối cảnh lịch sử cho mỗi section
 - Chọn "league" từ danh sách: [${availableSlugs}]
 - 3–5 hashtags liên quan
+- "mainPlayer": tên cầu thủ TIẾNG ANH nổi bật nhất trong bài (VD: "Erling Haaland", "Mohamed Salah") — để trống "" nếu bài không tập trung vào cầu thủ cụ thể
+- "mainTeam": tên đội bóng TIẾNG ANH nổi bật nhất trong bài (VD: "Arsenal", "Manchester City", "Real Madrid") — để trống "" nếu không rõ
 
 Trả về DUY NHẤT JSON hợp lệ:
 {
@@ -1070,21 +1241,59 @@ Trả về DUY NHẤT JSON hợp lệ:
   "excerpt": "...",
   "league": "slug-giai-dau",
   "sections": [{ "heading": "...", "text": "..." }],
-  "hashtags": ["...", "..."]
+  "hashtags": ["...", "..."],
+  "mainPlayer": "...",
+  "mainTeam": "..."
 }`;
   const result = await model.generateContent(prompt);
   return parseAIJson(result.response.text());
 }
 
-async function uploadImageFromUrl(imageUrl) {
+async function fetchPlayerImage(playerName) {
+  if (!playerName) return null;
+  try {
+    const res = await axios.get(
+      `https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(playerName)}`,
+      { timeout: 6000 }
+    );
+    const player = res.data?.player?.[0];
+    if (!player) return null;
+    // Ưu tiên: cutout (PNG nền trong) > render > thumb
+    return player.strCutout || player.strRender || player.strThumb || null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTeamImage(teamName) {
+  if (!teamName) return null;
+  try {
+    const res = await axios.get(
+      `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(teamName)}`,
+      { timeout: 6000 }
+    );
+    const team = res.data?.teams?.[0];
+    if (!team) return null;
+    // Ưu tiên: fanart > stadium > badge (fanart đẹp nhất cho bài viết)
+    return team.strTeamFanart1 || team.strTeamFanart2 || team.strStadiumThumb || team.strTeamBadge || null;
+  } catch {
+    return null;
+  }
+}
+
+async function uploadImageFromUrl(imageUrl, filename = "") {
   try {
     const res = await axios.get(imageUrl, {
       responseType: "arraybuffer",
       timeout: 10000,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
     });
+    const ext = imageUrl.split("?")[0].match(/\.(jpg|jpeg|png|webp|gif)$/i)?.[1] || "jpg";
+    const safeFilename = filename
+      ? `${createSlug(filename).slice(0, 80)}.${ext}`
+      : `bongda247-${Date.now()}.${ext}`;
     const asset = await sanity.assets.upload("image", Buffer.from(res.data), {
-      filename: `news-${Date.now()}.jpg`,
+      filename: safeFilename,
     });
     return asset._id;
   } catch {
@@ -1147,11 +1356,20 @@ async function runNewsFetch() {
     const selected = ranked.slice(0, 2);
     for (const article of selected) {
       processedUrls.add(article.url);
-      if (!article.imageUrl) {
-        article.imageUrl = await extractOgImage(article.url);
-      }
+      // Luôn scrape og:image từ trang gốc — ảnh full-size (1200×630)
+      // RSS thumbnail chỉ là preview nhỏ, dùng làm fallback cuối
+      const ogImage = await extractOgImage(article.url);
+      article.imageUrl = ogImage || article.imageUrl || null;
       try {
         const generatedPost = await generateNewsPost(article);
+        // TheSportsDB → ảnh xuất hiện TRONG bài viết (không phải thumbnail)
+        // thumbnail dùng og:image / RSS, TheSportsDB chèn vào content
+        if (generatedPost.mainPlayer) {
+          article.sportsDbImageUrl = await fetchPlayerImage(generatedPost.mainPlayer);
+        }
+        if (!article.sportsDbImageUrl && generatedPost.mainTeam) {
+          article.sportsDbImageUrl = await fetchTeamImage(generatedPost.mainTeam);
+        }
         const categoryId = getCategoryId(generatedPost.league);
         const ndId = `nd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         newsDraftStore.set(ndId, { article, generatedPost, categoryId });

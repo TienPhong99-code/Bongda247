@@ -253,10 +253,27 @@ node bot-press.js
 5. Gửi từng trận về Telegram (chat ID owner) với nút:
    - `🔄 Đổi HOT` — toggle, chưa đăng
    - `✅ Đăng lên Slide` → tạo `matchInsight` (lưu `matchDate` = giờ UTC thực tế)
+   - `📝 Tạo bài nhận định` → kích hoạt Luồng 6
    - `⏭ Bỏ qua`
 
 **Data thật từ API:** hạng BXH, điểm, W/D/L, form
 **Data AI tạo:** nhận định chiến thuật, dự đoán tỉ số
+
+### Luồng 6 — BÀI NHẬN ĐỊNH ĐẦY ĐỦ (on-demand)
+**Trigger:** Bấm nút `📝 Tạo bài nhận định` trên card matchInsight
+
+1. Lấy thông tin từ `draftStore`: homeTeam, awayTeam, matchTime, leagueCode, matchDate
+2. Gọi `generateMatchArticle()` — Gemini viết bài 6 sections ~1000 từ:
+   - Section 1: Bối cảnh trận đấu
+   - Section 2: Phong độ đội nhà (dựa trên BXH thực tế)
+   - Section 3: Phong độ đội khách (dựa trên BXH thực tế)
+   - Section 4: Lịch sử đối đầu (Gemini knowledge)
+   - Section 5: Lực lượng & Đội hình dự kiến (Gemini knowledge)
+   - Section 6: Nhận định & Dự đoán tỉ số
+3. Gửi preview Telegram: title, excerpt, dự đoán với nút `✅ Đăng bài nhận định` / `⏭ Bỏ qua`
+4. Duyệt → fetch ảnh TheSportsDB (cầu thủ hoặc đội) → upload Sanity → tạo `post`
+
+**Lưu ý:** H2H, lực lượng, đội hình dự kiến do Gemini tự điền từ kiến thức training — chính xác với các đội lớn PL, có thể không cập nhật diễn biến mới nhất
 
 **Giới hạn free plan football-data.org:**
 - Chỉ có Fixtures + League Tables (không có H2H, team fixtures)
