@@ -48,11 +48,11 @@ const AF_HEADERS = { "x-apisports-key": process.env.API_FOOTBALL_KEY };
 // Map mã giải → Sanity slug + thông tin hiển thị + ID API-Football
 const LEAGUE_MAP = {
   PL:  { slug: "ngoai-hang-anh",   name: "Ngoại hạng Anh",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", apiId: 39  },
-  CL:  { slug: "champions-league", name: "Champions League", flag: "⭐",          apiId: 2   },
   PD:  { slug: "la-liga",          name: "La Liga",          flag: "🇪🇸",         apiId: 140 },
   BL1: { slug: "bundesliga",       name: "Bundesliga",       flag: "🇩🇪",         apiId: 78  },
-  SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹",         apiId: 135 },
-  FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷",         apiId: 61  },
+  // CL:  { slug: "champions-league", name: "Champions League", flag: "⭐",          apiId: 2   },
+  // SA:  { slug: "serie-a",          name: "Serie A",          flag: "🇮🇹",         apiId: 135 },
+  // FL1: { slug: "ligue-1",          name: "Ligue 1",          flag: "🇫🇷",         apiId: 61  },
 };
 
 // Reverse map: API-Football league ID → mã giải
@@ -95,6 +95,16 @@ async function fetchMatchesForDate(dateStr) {
     params: { date: dateStr },
     timeout: 10000,
   });
+
+  // API-Football trả errors object khi hết quota thay vì HTTP error
+  const errors = res.data.errors;
+  if (errors && Object.keys(errors).length > 0) {
+    const errMsg = Object.values(errors).join("; ");
+    throw new Error(`API-Football: ${errMsg}`);
+  }
+
+  console.log(`📅 API trả về ${res.data.results} fixtures ngày ${dateStr}`);
+
   // Normalize sang cấu trúc thống nhất dùng chung trong bot
   return (res.data.response ?? [])
     .map((item) => ({
@@ -654,6 +664,21 @@ bot.start((ctx) =>
     { parse_mode: "Markdown" }
   )
 );
+
+bot.command("quota", async (ctx) => {
+  try {
+    const res = await axios.get(`${AF_BASE}/status`, { headers: AF_HEADERS, timeout: 5000 });
+    const s = res.data.response;
+    await ctx.reply(
+      `📊 API-Football Quota\n\n` +
+      `• Gói: ${s.subscription?.plan ?? "?"}\n` +
+      `• Requests hôm nay: ${s.requests?.current ?? "?"} / ${s.requests?.limit_day ?? "?"}\n` +
+      `• Requests còn lại: ${(s.requests?.limit_day ?? 0) - (s.requests?.current ?? 0)}`
+    );
+  } catch (e) {
+    await ctx.reply(`❌ Lỗi kiểm tra quota: ${e.message}`);
+  }
+});
 
 bot.command("reload", async (ctx) => {
   await loadCategories();
