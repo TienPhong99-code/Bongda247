@@ -245,30 +245,42 @@ function buildDraftKeyboard(draftId, hot) {
   };
 }
 
+function stripHtml(str) {
+  return (str ?? "").replace(/<[^>]*>/g, "").trim();
+}
+
 function buildPortableText(sections, assetIds, imageAlt = "") {
   return sections.flatMap((section, i) => {
+    const headingText = stripHtml(section.heading);
+    const now = Date.now();
+
+    // Hỗ trợ cả "paragraphs" (array) lẫn "text" (string fallback)
+    const paragraphs = Array.isArray(section.paragraphs) && section.paragraphs.length
+      ? section.paragraphs
+      : [section.text ?? ""];
+
     const blocks = [
       {
         _type: "block",
-        _key: `h2-${i}-${Date.now()}`,
+        _key: `h2-${i}-${now}`,
         style: "h2",
         markDefs: [],
-        children: [{ _type: "span", _key: `sh-${i}`, text: section.heading }],
+        children: [{ _type: "span", _key: `sh-${i}`, text: headingText }],
       },
-      {
+      ...paragraphs.map((para, j) => ({
         _type: "block",
-        _key: `p-${i}-${Date.now() + i}`,
+        _key: `p-${i}-${j}-${now + j}`,
         style: "normal",
         markDefs: [],
-        children: [{ _type: "span", _key: `sp-${i}`, text: section.text }],
-      },
+        children: [{ _type: "span", _key: `sp-${i}-${j}`, text: stripHtml(para) }],
+      })),
     ];
     if (assetIds[i + 1]) {
       blocks.push({
         _type: "image",
-        _key: `img-${i}-${Date.now()}`,
+        _key: `img-${i}-${now}`,
         asset: { _type: "reference", _ref: assetIds[i + 1] },
-        alt: imageAlt || section.heading,
+        alt: imageAlt || headingText,
       });
     }
     return blocks;
@@ -369,12 +381,14 @@ DỮ LIỆU THỰC TẾ (dùng số liệu này, KHÔNG bịa):
 - ${formatStanding(awayStanding, awayTeam)}
 
 Cấu trúc bài gồm ĐÚNG 6 sections theo thứ tự:
-1. heading: "Bối cảnh trận ${homeTeam} vs ${awayTeam}" — giới thiệu ý nghĩa trận, thời gian, vòng đấu, điều gì đang bị đặt cược (150–200 từ)
-2. heading: "Phong độ ${homeTeam}" — phân tích dựa trên BXH thực tế: hạng, điểm, chuỗi trận, điểm mạnh/yếu (150–200 từ)
-3. heading: "Phong độ ${awayTeam}" — tương tự đội khách (150–200 từ)
-4. heading: "Lịch sử đối đầu" — các lần gặp nhau gần đây, xu hướng, kết quả đáng chú ý (150–200 từ)
-5. heading: "Lực lượng & Đội hình dự kiến" — cầu thủ vắng mặt, chấn thương, đội hình dự kiến ra sân (150–200 từ)
-6. heading: "Nhận định & Dự đoán tỉ số" — phân tích tổng hợp, lý do, dự đoán kết quả (150–200 từ)
+1. heading: "Bối cảnh trận ${homeTeam} vs ${awayTeam}" — giới thiệu ý nghĩa trận, thời gian, vòng đấu, điều gì đang bị đặt cược
+2. heading: "Phong độ ${homeTeam}" — phân tích dựa trên BXH thực tế: hạng, điểm, chuỗi trận, điểm mạnh/yếu
+3. heading: "Phong độ ${awayTeam}" — tương tự đội khách
+4. heading: "Lịch sử đối đầu" — các lần gặp nhau gần đây, xu hướng, kết quả đáng chú ý
+5. heading: "Lực lượng & Đội hình dự kiến" — cầu thủ vắng mặt, chấn thương, đội hình dự kiến ra sân
+6. heading: "Nhận định & Dự đoán tỉ số" — phân tích tổng hợp, lý do, dự đoán kết quả
+
+Mỗi section phải có "paragraphs": mảng 2–3 đoạn văn, mỗi đoạn 60–80 từ (KHÔNG gộp tất cả vào 1 đoạn dài).
 
 Yêu cầu khác:
 - title SEO 50–60 ký tự, có tên 2 đội
@@ -383,12 +397,13 @@ Yêu cầu khác:
 - 3–5 hashtags
 - mainPlayer: cầu thủ tiếng Anh nổi bật nhất (để trống "" nếu không rõ)
 - mainTeam: đội bóng tiếng Anh nổi bật nhất
+- KHÔNG dùng HTML tags (<h2>, <p>, <b>,...) trong bất kỳ field nào — chỉ plain text thuần
 
 Trả về DUY NHẤT JSON hợp lệ:
 {
   "title": "...",
   "excerpt": "...",
-  "sections": [{ "heading": "...", "text": "..." }],
+  "sections": [{ "heading": "...", "paragraphs": ["đoạn 1", "đoạn 2", "đoạn 3"] }],
   "prediction": "...",
   "hashtags": ["..."],
   "mainPlayer": "...",
@@ -560,8 +575,9 @@ Viết bài báo bóng đá chuẩn SEO từ nội dung: "${rawText}"
 
 Yêu cầu:
 - Chọn "league" từ danh sách: [${availableSlugs}] — tự nhận diện giải đấu từ nội dung
-- 3–5 sections, mỗi section: heading h2 + đoạn text 80–150 từ tiếng Việt
+- 3–5 sections, mỗi section: "heading" (plain text) + đoạn "text" 80–150 từ tiếng Việt
 - Tiêu đề hấp dẫn, excerpt 1–2 câu
+- KHÔNG dùng HTML tags trong bất kỳ field nào
 
 Trả về DUY NHẤT JSON hợp lệ:
 {
@@ -984,15 +1000,31 @@ bot.on("callback_query", async (ctx) => {
     try {
       const { data, categoryId } = draft;
 
-      // Ảnh TheSportsDB chèn vào giữa bài (sau section 0)
-      const sportsDbLabel = data.mainPlayer || data.mainTeam || data.title;
+      // Fetch ảnh: ưu tiên cầu thủ → đội nổi bật → fallback về đội nhà/khách
       let sportsDbImageUrl = null;
-      if (data.mainPlayer) sportsDbImageUrl = await fetchPlayerImage(data.mainPlayer);
-      if (!sportsDbImageUrl && data.mainTeam) sportsDbImageUrl = await fetchTeamImage(data.mainTeam);
+      let sportsDbLabel = data.title;
+      if (data.mainPlayer) {
+        sportsDbImageUrl = await fetchPlayerImage(data.mainPlayer);
+        if (sportsDbImageUrl) sportsDbLabel = data.mainPlayer;
+      }
+      if (!sportsDbImageUrl && data.mainTeam) {
+        sportsDbImageUrl = await fetchTeamImage(data.mainTeam);
+        if (sportsDbImageUrl) sportsDbLabel = data.mainTeam;
+      }
+      if (!sportsDbImageUrl && data.homeTeam) {
+        sportsDbImageUrl = await fetchTeamImage(data.homeTeam);
+        if (sportsDbImageUrl) sportsDbLabel = data.homeTeam;
+      }
+      if (!sportsDbImageUrl && data.awayTeam) {
+        sportsDbImageUrl = await fetchTeamImage(data.awayTeam);
+        if (sportsDbImageUrl) sportsDbLabel = data.awayTeam;
+      }
+
       const sportsDbAssetId = sportsDbImageUrl
         ? await uploadImageFromUrl(sportsDbImageUrl, sportsDbLabel)
         : null;
 
+      // Ảnh làm thumbnail (mainImage) và chèn vào giữa bài (sau section 0)
       const contentAssetIds = sportsDbAssetId ? [null, sportsDbAssetId] : [];
 
       await sanity.create({
@@ -1000,6 +1032,9 @@ bot.on("callback_query", async (ctx) => {
         title: data.title,
         slug: { _type: "slug", current: `${createSlug(data.title)}-${Date.now()}` },
         excerpt: data.excerpt,
+        mainImage: sportsDbAssetId
+          ? { _type: "image", asset: { _type: "reference", _ref: sportsDbAssetId } }
+          : undefined,
         content: buildPortableText(data.sections || [], contentAssetIds, sportsDbLabel),
         category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
         hashtags: data.hashtags ?? [],
@@ -1147,14 +1182,30 @@ const rssParser = new RssParser({
     item: [["media:thumbnail", "mediaThumbnail"], ["media:content", "mediaContent"]],
   },
   headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
-  timeout: 10000,
+  timeout: 20000,
 });
 
 async function fetchRSSFeeds() {
   const allItems = [];
   for (const source of RSS_SOURCES) {
     try {
-      const feed = await rssParser.parseURL(source.url);
+      let feed;
+      // Bóng Đá Plus feed có HTML entities không escape đúng → fetch raw rồi sanitize
+      if (source.url.includes("bongdaplus.vn")) {
+        const res = await axios.get(source.url, {
+          timeout: 20000,
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
+          responseType: "text",
+        });
+        // Xóa attribute values có ký tự không hợp lệ (unquoted > trong attr)
+        const sanitized = res.data
+          .replace(/(<[^>]*?)\s+(\w+)=([^"'][^\s>]*)/g, (_m, pre, attr, val) =>
+            `${pre} ${attr}="${val.replace(/"/g, "&quot;")}"`
+          );
+        feed = await rssParser.parseString(sanitized);
+      } else {
+        feed = await rssParser.parseURL(source.url);
+      }
       for (const item of feed.items ?? []) {
         const imageUrl =
           item.mediaThumbnail?.$.url ||
@@ -1228,7 +1279,7 @@ NGUỒN: ${article.source}
 Yêu cầu:
 - Tiêu đề mới hấp dẫn, có từ khóa SEO, tiếng Việt, 50–60 ký tự
 - excerpt 150–160 ký tự, tóm tắt hấp dẫn có từ khóa
-- 5 sections, mỗi section: heading h2 chứa từ khóa phụ + đoạn text 150–200 từ tiếng Việt
+- 5 sections, mỗi section: "heading" (plain text, chứa từ khóa phụ) + "paragraphs" (mảng 2–3 đoạn, mỗi đoạn 60–80 từ tiếng Việt), KHÔNG dùng HTML tags
 - Thêm phân tích chuyên sâu, số liệu, bối cảnh lịch sử cho mỗi section
 - Chọn "league" từ danh sách: [${availableSlugs}]
 - 3–5 hashtags liên quan
@@ -1240,7 +1291,7 @@ Trả về DUY NHẤT JSON hợp lệ:
   "title": "...",
   "excerpt": "...",
   "league": "slug-giai-dau",
-  "sections": [{ "heading": "...", "text": "..." }],
+  "sections": [{ "heading": "...", "paragraphs": ["đoạn 1", "đoạn 2", "đoạn 3"] }],
   "hashtags": ["...", "..."],
   "mainPlayer": "...",
   "mainTeam": "..."
@@ -1363,12 +1414,30 @@ async function runNewsFetch() {
       try {
         const generatedPost = await generateNewsPost(article);
         // TheSportsDB → ảnh xuất hiện TRONG bài viết (không phải thumbnail)
-        // thumbnail dùng og:image / RSS, TheSportsDB chèn vào content
+        // Thứ tự: cầu thủ nổi bật → đội nổi bật → fallback parse title
+        article.sportsDbImageUrl = null;
         if (generatedPost.mainPlayer) {
           article.sportsDbImageUrl = await fetchPlayerImage(generatedPost.mainPlayer);
+          console.log(`🖼 Player image (${generatedPost.mainPlayer}):`, article.sportsDbImageUrl ? "✓" : "null");
         }
         if (!article.sportsDbImageUrl && generatedPost.mainTeam) {
           article.sportsDbImageUrl = await fetchTeamImage(generatedPost.mainTeam);
+          console.log(`🖼 Team image (${generatedPost.mainTeam}):`, article.sportsDbImageUrl ? "✓" : "null");
+        }
+        // Fallback: parse tên đội từ tiêu đề bài
+        if (!article.sportsDbImageUrl) {
+          const knownTeams = [
+            "Arsenal","Chelsea","Liverpool","Manchester City","Manchester United",
+            "Tottenham","Newcastle","Aston Villa","Real Madrid","Barcelona",
+            "Atletico Madrid","Bayern Munich","Dortmund","Juventus","AC Milan",
+            "Inter Milan","PSG","Napoli","Roma","Lazio","Porto","Benfica",
+          ];
+          const titleLower = article.title.toLowerCase();
+          const matched = knownTeams.find((t) => titleLower.includes(t.toLowerCase()));
+          if (matched) {
+            article.sportsDbImageUrl = await fetchTeamImage(matched);
+            console.log(`🖼 Fallback team image (${matched}):`, article.sportsDbImageUrl ? "✓" : "null");
+          }
         }
         const categoryId = getCategoryId(generatedPost.league);
         const ndId = `nd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;

@@ -42,7 +42,7 @@ const { value } = Astro.props;
           <figure class="my-10">
             <img
               src={urlFor(block.asset).width(800).url()}
-              alt="Hình ảnh trong bài viết"
+              alt={block.alt || "Hình ảnh trong bài viết"}
               class="rounded-xl shadow-2xl mx-auto border border-card"
               loading="lazy"
             />

@@ -4,7 +4,6 @@ import PortableText from "../../components/PortableText.astro";
 import { client, urlFor } from "../../lib/sanity.ts";
 import type { PostDetail } from "../../types";
 
-// 1. Hàm getStaticPaths để khai báo tất cả các URL bài viết
 export async function getStaticPaths() {
   const posts = await client.fetch(`
     *[_type == "post"] {
@@ -15,13 +14,12 @@ export async function getStaticPaths() {
 
   return posts.map((post: any) => ({
     params: {
-      category: post.category || "tin-tuc", // fallback nếu thiếu category
+      category: post.category || "tin-tuc",
       slug: post.slug,
     },
   }));
 }
 
-// 2. Lấy dữ liệu cho từng trang cụ thể
 const { category, slug } = Astro.params;
 
 const post = await client.fetch<PostDetail | null>(
