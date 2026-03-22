@@ -32,7 +32,7 @@ const sanity = createClient({
 });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 // Chat ID nhận bản nháp hàng ngày — set TELEGRAM_OWNER_CHAT_ID trong .env
@@ -156,8 +156,16 @@ async function fetchHeadToHead(homeId, awayId) {
       params: { h2h: `${homeId}-${awayId}`, last: 5 },
       timeout: 10000,
     });
-    return res.data.response ?? [];
-  } catch {
+    const errors = res.data.errors;
+    if (errors && Object.keys(errors).length > 0) {
+      console.warn(`⚠️ H2H ${homeId}-${awayId} lỗi API:`, errors);
+      return [];
+    }
+    const data = res.data.response ?? [];
+    console.log(`🔀 H2H ${homeId}-${awayId}: ${data.length} trận`);
+    return data;
+  } catch (e) {
+    console.error(`❌ fetchHeadToHead(${homeId},${awayId}):`, e.message);
     return [];
   }
 }
@@ -170,8 +178,16 @@ async function fetchTeamFixtures(teamId) {
       params: { team: teamId, last: 5, season: getCurrentSeason() },
       timeout: 10000,
     });
-    return res.data.response ?? [];
-  } catch {
+    const errors = res.data.errors;
+    if (errors && Object.keys(errors).length > 0) {
+      console.warn(`⚠️ Fixtures team ${teamId} lỗi API:`, errors);
+      return [];
+    }
+    const data = res.data.response ?? [];
+    console.log(`📋 Team ${teamId}: ${data.length} fixtures, season ${getCurrentSeason()}`);
+    return data;
+  } catch (e) {
+    console.error(`❌ fetchTeamFixtures(${teamId}):`, e.message);
     return [];
   }
 }
@@ -233,9 +249,11 @@ function selectMatches(matches) {
     if (!grouped[code]) grouped[code] = [];
     if (grouped[code].length < 3) grouped[code].push(match);
   }
-  return Object.entries(grouped).flatMap(([code, list]) =>
+  const all = Object.entries(grouped).flatMap(([code, list]) =>
     list.map((m) => ({ ...m, leagueCode: code }))
   );
+  // DEBUG: chỉ lấy 1 trận để tiết kiệm request
+  return all.slice(0, 1);
 }
 
 // ============================================================
@@ -396,6 +414,12 @@ async function generateDraftForMatch(match, standings = {}, h2hFixtures = [], ho
   const homeTeamStats = computeTeamStats(homeFixtures, match.homeTeam?.id);
   const awayTeamStats = computeTeamStats(awayFixtures, match.awayTeam?.id);
   const h2hStats = computeH2HStats(h2hFixtures);
+
+  // Debug log
+  console.log(`\n📊 Stats cho ${homeTeam} vs ${awayTeam}:`);
+  console.log(`  homeFixtures: ${homeFixtures.length} trận | homeStats:`, JSON.stringify(homeTeamStats));
+  console.log(`  awayFixtures: ${awayFixtures.length} trận | awayStats:`, JSON.stringify(awayTeamStats));
+  console.log(`  h2hFixtures: ${h2hFixtures.length} trận | h2hStats:`, JSON.stringify(h2hStats));
 
   // Tóm tắt H2H 5 trận gần nhất dạng text
   const h2hSummary = h2hFixtures.slice(0, 5)
