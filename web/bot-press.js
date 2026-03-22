@@ -86,7 +86,7 @@ async function fetchMatchesForDate(dateStr) {
       const res = await axios.get(`${FD_BASE}/competitions/${code}/matches`, {
         headers: FD_HEADERS,
         params: { dateFrom: dateStr, dateTo: dateStr },
-        timeout: 10000,
+        timeout: 15000,
       });
       const matches = res.data.matches ?? [];
       console.log(`📅 ${code}: ${matches.length} fixtures ngày ${dateStr}`);
@@ -112,7 +112,7 @@ async function fetchStandings(leagueCode) {
   try {
     const res = await axios.get(`${FD_BASE}/competitions/${leagueCode}/standings`, {
       headers: FD_HEADERS,
-      timeout: 10000,
+      timeout: 15000,
     });
     const table = res.data.standings?.[0]?.table ?? [];
     const lookup = {};
@@ -146,11 +146,9 @@ function selectMatches(matches) {
     if (!grouped[code]) grouped[code] = [];
     if (grouped[code].length < 3) grouped[code].push(match);
   }
-  const all = Object.entries(grouped).flatMap(([code, list]) =>
+  return Object.entries(grouped).flatMap(([code, list]) =>
     list.map((m) => ({ ...m, leagueCode: code }))
   );
-  // DEBUG: chỉ lấy 1 trận để tiết kiệm request
-  return all.slice(0, 1);
 }
 
 // ============================================================
