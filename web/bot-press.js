@@ -1020,6 +1020,7 @@ bot.on("callback_query", async (ctx) => {
           matchTime: data.matchTime,
           matchDate: data.matchDate || null,
           leagueName: data.leagueName || "Premier League",
+          leagueCode: data.leagueCode || null,
           homePlayer: data.mainPlayer || null,
           awayPlayer: null,
         });
