@@ -249,7 +249,14 @@ function stripHtml(str) {
   return (str ?? "").replace(/<[^>]*>/g, "").trim();
 }
 
-function buildPortableText(sections, assetIds, imageAlt = "") {
+// images[] có thể là: null | string (assetId) | { id, caption, credit }
+function normalizeImage(v) {
+  if (!v) return null;
+  if (typeof v === "string") return { id: v, caption: null, credit: null };
+  return v;
+}
+
+function buildPortableText(sections, images = [], defaultAlt = "") {
   return sections.flatMap((section, i) => {
     const headingText = stripHtml(section.heading);
     const now = Date.now();
@@ -275,12 +282,15 @@ function buildPortableText(sections, assetIds, imageAlt = "") {
         children: [{ _type: "span", _key: `sp-${i}-${j}`, text: stripHtml(para) }],
       })),
     ];
-    if (assetIds[i + 1]) {
+    const img = normalizeImage(images[i + 1]);
+    if (img) {
       blocks.push({
         _type: "image",
         _key: `img-${i}-${now}`,
-        asset: { _type: "reference", _ref: assetIds[i + 1] },
-        alt: imageAlt || headingText,
+        asset: { _type: "reference", _ref: img.id },
+        alt: defaultAlt || headingText,
+        ...(img.caption && { caption: img.caption }),
+        ...(img.credit && { credit: img.credit }),
       });
     }
     return blocks;
@@ -1024,8 +1034,21 @@ bot.on("callback_query", async (ctx) => {
         ? await uploadImageFromUrl(sportsDbImageUrl, sportsDbLabel)
         : null;
 
+      // Tạo caption + credit cho ảnh in-content
+      let sportsDbCaption = "";
+      if (data.mainPlayer) {
+        sportsDbCaption = data.mainTeam
+          ? `${data.mainPlayer} - ${data.mainTeam}`
+          : data.mainPlayer;
+      } else if (data.mainTeam) {
+        sportsDbCaption = data.mainTeam;
+      } else {
+        sportsDbCaption = `${data.homeTeam} vs ${data.awayTeam}`;
+      }
       // Ảnh làm thumbnail (mainImage) và chèn vào giữa bài (sau section 0)
-      const contentAssetIds = sportsDbAssetId ? [null, sportsDbAssetId] : [];
+      const contentImages = sportsDbAssetId
+        ? [null, { id: sportsDbAssetId, caption: sportsDbCaption, credit: "TheSportsDB" }]
+        : [];
 
       await sanity.create({
         _type: "post",
@@ -1035,7 +1058,7 @@ bot.on("callback_query", async (ctx) => {
         mainImage: sportsDbAssetId
           ? { _type: "image", asset: { _type: "reference", _ref: sportsDbAssetId } }
           : undefined,
-        content: buildPortableText(data.sections || [], contentAssetIds, sportsDbLabel),
+        content: buildPortableText(data.sections || [], contentImages, sportsDbCaption),
         category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
         hashtags: data.hashtags ?? [],
         publishedAt: new Date().toISOString(),
@@ -1107,8 +1130,20 @@ bot.on("callback_query", async (ctx) => {
       const sportsDbAssetId = article.sportsDbImageUrl
         ? await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel)
         : null;
-      // assetIds[0] = unused, assetIds[1] = sau section 0
-      const contentAssetIds = sportsDbAssetId ? [null, sportsDbAssetId] : [];
+
+      // Tạo caption + credit cho ảnh in-content
+      let sportsDbCaption = "";
+      if (generatedPost.mainPlayer) {
+        sportsDbCaption = generatedPost.mainTeam
+          ? `${generatedPost.mainPlayer} - ${generatedPost.mainTeam}`
+          : generatedPost.mainPlayer;
+      } else if (generatedPost.mainTeam) {
+        sportsDbCaption = generatedPost.mainTeam;
+      }
+      // images[0] = unused, images[1] = sau section 0
+      const contentImages = sportsDbAssetId
+        ? [null, { id: sportsDbAssetId, caption: sportsDbCaption, credit: "TheSportsDB" }]
+        : [];
 
       await sanity.create({
         _type: "post",
@@ -1118,7 +1153,7 @@ bot.on("callback_query", async (ctx) => {
           ? { _type: "image", asset: { _type: "reference", _ref: assetId } }
           : undefined,
         excerpt: generatedPost.excerpt,
-        content: buildPortableText(generatedPost.sections || [], contentAssetIds, sportsDbLabel),
+        content: buildPortableText(generatedPost.sections || [], contentImages, sportsDbLabel),
         category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
         hashtags: generatedPost.hashtags ?? [],
         sourceUrl: article.url,
@@ -1267,8 +1302,18 @@ function filterAndRankArticles(items) {
     .sort((a, b) => b.score - a.score);
 }
 
+// Hướng dẫn phân loại danh mục cho Gemini — ưu tiên từ trên xuống
+const CATEGORY_GUIDE = `HƯỚNG DẪN CHỌN DANH MỤC (ưu tiên theo thứ tự):
+1. "chuyen-nhuong" — Bài về chuyển nhượng cầu thủ/HLV: mua bán, cho mượn, gia hạn hợp đồng, giá chuyển nhượng, đàm phán — DÙ liên quan giải nào, ưu tiên danh mục này.
+2. "ngoai-hang-anh" — Bài về trận đấu, kết quả, phân tích đội bóng/cầu thủ Premier League (Man City, Arsenal, Liverpool, Chelsea, Man Utd, Tottenham...).
+3. "champions-league" — Bài về Champions League, Europa League, Conference League, Super Cup châu Âu.
+4. "la-liga" — Bài về La Liga (Real Madrid, Barcelona, Atletico Madrid, Sevilla...).
+5. "bundesliga" — Bài về Bundesliga (Bayern Munich, Dortmund, Bayer Leverkusen...).
+6. "serie-a" — Bài về Serie A (Juventus, AC Milan, Inter Milan, Napoli...).
+7. "ligue-1" — Bài về Ligue 1 (PSG, Monaco, Marseille, Lyon...).
+8. "ngoai-san-co" — Dùng khi bài KHÔNG thuộc các trường hợp trên: tin scandal, đời tư cầu thủ, chấn thương/hồi phục, tài chính CLB, kinh doanh bóng đá, sa thải/bổ nhiệm HLV (không phải chuyển nhượng), bình luận/tranh cãi ngoài sân.`;
+
 async function generateNewsPost(article) {
-  const availableSlugs = Object.keys(CATEGORIES).join(", ");
   const prompt = `Bạn là biên tập viên bóng đá chuyên nghiệp viết tiếng Việt chuẩn SEO.
 Dựa trên thông tin bài gốc dưới đây, hãy VIẾT LẠI HOÀN TOÀN bằng tiếng Việt — KHÔNG dịch thẳng, KHÔNG copy.
 Thêm phân tích, góc nhìn, bối cảnh phù hợp độc giả Việt Nam.
@@ -1282,23 +1327,32 @@ Yêu cầu:
 - excerpt 150–160 ký tự, tóm tắt hấp dẫn có từ khóa
 - 5 sections, mỗi section: "heading" (plain text, chứa từ khóa phụ) + "paragraphs" (mảng 2–3 đoạn, mỗi đoạn 60–80 từ tiếng Việt), KHÔNG dùng HTML tags
 - Thêm phân tích chuyên sâu, số liệu, bối cảnh lịch sử cho mỗi section
-- Chọn "league" từ danh sách: [${availableSlugs}]
 - 3–5 hashtags liên quan
 - "mainPlayer": tên cầu thủ TIẾNG ANH nổi bật nhất trong bài (VD: "Erling Haaland", "Mohamed Salah") — để trống "" nếu bài không tập trung vào cầu thủ cụ thể
 - "mainTeam": tên đội bóng TIẾNG ANH nổi bật nhất trong bài (VD: "Arsenal", "Manchester City", "Real Madrid") — để trống "" nếu không rõ
+
+${CATEGORY_GUIDE}
 
 Trả về DUY NHẤT JSON hợp lệ:
 {
   "title": "...",
   "excerpt": "...",
-  "league": "slug-giai-dau",
+  "league": "slug-danh-muc",
   "sections": [{ "heading": "...", "paragraphs": ["đoạn 1", "đoạn 2", "đoạn 3"] }],
   "hashtags": ["...", "..."],
   "mainPlayer": "...",
   "mainTeam": "..."
 }`;
   const result = await model.generateContent(prompt);
-  return parseAIJson(result.response.text());
+  const post = parseAIJson(result.response.text());
+
+  // Validate slug — fallback về ngoai-san-co nếu Gemini trả slug không hợp lệ
+  if (!CATEGORIES[post.league]) {
+    console.warn(`⚠️ Gemini trả slug không hợp lệ: "${post.league}" → fallback "ngoai-san-co"`);
+    post.league = CATEGORIES["ngoai-san-co"] ? "ngoai-san-co" : Object.keys(CATEGORIES)[0];
+  }
+
+  return post;
 }
 
 async function fetchPlayerImage(playerName) {

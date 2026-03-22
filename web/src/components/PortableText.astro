@@ -46,9 +46,19 @@ const { value } = Astro.props;
               class="rounded-xl shadow-2xl mx-auto border border-card"
               loading="lazy"
             />
-            {block.caption && (
-              <figcaption class="text-center text-sm mt-3 italic text-secondary">
-                {block.caption}
+            {(block.caption || block.credit) && (
+              <figcaption class="flex items-center justify-center gap-2 mt-3 text-sm text-secondary">
+                {block.caption && (
+                  <span class="italic">{block.caption}</span>
+                )}
+                {block.caption && block.credit && (
+                  <span class="opacity-40">·</span>
+                )}
+                {block.credit && (
+                  <span class="not-italic font-medium opacity-70">
+                    Ảnh: {block.credit}
+                  </span>
+                )}
               </figcaption>
             )}
           </figure>
