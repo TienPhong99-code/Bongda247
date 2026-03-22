@@ -78,26 +78,33 @@ function formatMatchTime(utcDateStr) {
   return `${get("hour")}:${get("minute")} - ${get("day")}/${get("month")}`;
 }
 
+// Free plan chỉ cho fetch per-competition, không có global /matches endpoint
 async function fetchMatchesForDate(dateStr) {
-  const res = await axios.get(`${FD_BASE}/matches`, {
-    headers: FD_HEADERS,
-    params: { dateFrom: dateStr, dateTo: dateStr },
-    timeout: 10000,
-  });
-
-  const matches = res.data.matches ?? [];
-  console.log(`📅 API trả về ${matches.length} fixtures ngày ${dateStr}`);
-
-  // Normalize sang cấu trúc thống nhất dùng chung trong bot
-  return matches
-    .map((m) => ({
-      id: m.id,
-      homeTeam: { id: m.homeTeam.id, name: m.homeTeam.name },
-      awayTeam: { id: m.awayTeam.id, name: m.awayTeam.name },
-      utcDate: m.utcDate,
-      competition: { code: m.competition.code },
-    }))
-    .filter((m) => LEAGUE_MAP[m.competition.code]);
+  const all = [];
+  for (const code of Object.keys(LEAGUE_MAP)) {
+    try {
+      const res = await axios.get(`${FD_BASE}/competitions/${code}/matches`, {
+        headers: FD_HEADERS,
+        params: { dateFrom: dateStr, dateTo: dateStr },
+        timeout: 10000,
+      });
+      const matches = res.data.matches ?? [];
+      console.log(`📅 ${code}: ${matches.length} fixtures ngày ${dateStr}`);
+      for (const m of matches) {
+        all.push({
+          id: m.id,
+          homeTeam: { id: m.homeTeam.id, name: m.homeTeam.name },
+          awayTeam: { id: m.awayTeam.id, name: m.awayTeam.name },
+          utcDate: m.utcDate,
+          competition: { code },
+        });
+      }
+    } catch (e) {
+      console.warn(`⚠️ ${code}: ${e.message}`);
+    }
+    await delay(7000);
+  }
+  return all;
 }
 
 // Lấy bảng xếp hạng thực tế → { teamId: { position, points, form, won, draw, lost, gf, ga } }
