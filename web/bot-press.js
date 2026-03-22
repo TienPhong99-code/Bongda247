@@ -1163,7 +1163,6 @@ bot.on("callback_query", async (ctx) => {
 
 const RSS_SOURCES = [
   { url: "https://www.skysports.com/rss/12040", name: "Sky Sports", lang: "en" },
-  { url: "https://www.skysports.com/rss/12006", name: "Sky Sports", lang: "en" },
   { url: "https://feeds.bbci.co.uk/sport/football/rss.xml", name: "BBC Sport", lang: "en" },
   { url: "https://bongdaplus.vn/rss/tin-tuc.rss", name: "Bóng Đá Plus", lang: "vi" },
 ];
@@ -1190,18 +1189,20 @@ async function fetchRSSFeeds() {
   for (const source of RSS_SOURCES) {
     try {
       let feed;
-      // Bóng Đá Plus feed có HTML entities không escape đúng → fetch raw rồi sanitize
+      // Bóng Đá Plus feed có XML malformed → fetch raw rồi sanitize trước khi parse
       if (source.url.includes("bongdaplus.vn")) {
         const res = await axios.get(source.url, {
           timeout: 20000,
           headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
           responseType: "text",
         });
-        // Xóa attribute values có ký tự không hợp lệ (unquoted > trong attr)
         const sanitized = res.data
-          .replace(/(<[^>]*?)\s+(\w+)=([^"'][^\s>]*)/g, (_m, pre, attr, val) =>
-            `${pre} ${attr}="${val.replace(/"/g, "&quot;")}"`
-          );
+          // Thêm space giữa các attribute liền nhau: "val"attr → "val" attr
+          .replace(/"([a-zA-Z_])/g, '" $1')
+          // Quote unquoted attribute values: attr=value → attr="value"
+          .replace(/(\w+)=([^"'\s>][^\s>]*)/g, '$1="$2"')
+          // Fix unescaped & không phải entity
+          .replace(/&(?![a-zA-Z#][a-zA-Z0-9]{0,6};)/g, '&amp;');
         feed = await rssParser.parseString(sanitized);
       } else {
         feed = await rssParser.parseURL(source.url);
@@ -1404,7 +1405,7 @@ async function runNewsFetch() {
       return;
     }
 
-    const selected = ranked.slice(0, 2);
+    const selected = ranked.slice(0, 5);
     for (const article of selected) {
       processedUrls.add(article.url);
       // Luôn scrape og:image từ trang gốc — ảnh full-size (1200×630)
@@ -1438,6 +1439,11 @@ async function runNewsFetch() {
             article.sportsDbImageUrl = await fetchTeamImage(matched);
             console.log(`🖼 Fallback team image (${matched}):`, article.sportsDbImageUrl ? "✓" : "null");
           }
+        }
+        // Fallback cuối: dùng og:image làm ảnh in-article nếu TheSportsDB không trả kết quả
+        if (!article.sportsDbImageUrl && article.imageUrl) {
+          article.sportsDbImageUrl = article.imageUrl;
+          console.log("🖼 Fallback to og:image for in-article");
         }
         const categoryId = getCategoryId(generatedPost.league);
         const ndId = `nd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
