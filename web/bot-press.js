@@ -668,8 +668,18 @@ bot.start((ctx) =>
 bot.command("quota", async (ctx) => {
   try {
     const res = await axios.get(`${AF_BASE}/status`, { headers: AF_HEADERS, timeout: 5000 });
-    // Debug: gửi raw response để xem cấu trúc thật
-    await ctx.reply(JSON.stringify(res.data, null, 2).slice(0, 3000));
+    const errors = res.data.errors;
+    if (errors && Object.keys(errors).length > 0) {
+      await ctx.reply(`⚠️ API-Football lỗi: ${Object.values(errors).join("; ")}`);
+      return;
+    }
+    const s = res.data.response;
+    await ctx.reply(
+      `📊 API-Football Quota\n\n` +
+      `• Gói: ${s.subscription?.plan ?? "?"}\n` +
+      `• Requests hôm nay: ${s.requests?.current ?? "?"} / ${s.requests?.limit_day ?? "?"}\n` +
+      `• Requests còn lại: ${(s.requests?.limit_day ?? 0) - (s.requests?.current ?? 0)}`
+    );
   } catch (e) {
     await ctx.reply(`❌ Lỗi kiểm tra quota: ${e.message}`);
   }
