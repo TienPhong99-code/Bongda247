@@ -148,12 +148,12 @@ async function fetchStandings(leagueCode) {
   }
 }
 
-// Lấy lịch sử đối đầu 10 trận gần nhất → raw fixtures array
+// Lấy lịch sử đối đầu 5 trận gần nhất → raw fixtures array
 async function fetchHeadToHead(homeId, awayId) {
   try {
     const res = await axios.get(`${AF_BASE}/fixtures/headtohead`, {
       headers: AF_HEADERS,
-      params: { h2h: `${homeId}-${awayId}`, last: 10 },
+      params: { h2h: `${homeId}-${awayId}`, last: 5 },
       timeout: 10000,
     });
     return res.data.response ?? [];
@@ -162,12 +162,12 @@ async function fetchHeadToHead(homeId, awayId) {
   }
 }
 
-// Lấy 10 trận gần nhất của một đội
+// Lấy 5 trận gần nhất của một đội
 async function fetchTeamFixtures(teamId) {
   try {
     const res = await axios.get(`${AF_BASE}/fixtures`, {
       headers: AF_HEADERS,
-      params: { team: teamId, last: 10, season: getCurrentSeason() },
+      params: { team: teamId, last: 5, season: getCurrentSeason() },
       timeout: 10000,
     });
     return res.data.response ?? [];
@@ -518,7 +518,7 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
   const standingsMap = {}; // leagueCode → { teamId: stats }
   for (const code of Object.keys(byLeague)) {
     standingsMap[code] = await fetchStandings(code);
-    await delay(2000);
+    await delay(7000);
   }
 
   // Xử lý từng giải
@@ -528,11 +528,11 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
     for (const match of leagueMatches) {
       try {
         const h2hFixtures   = await fetchHeadToHead(match.homeTeam?.id, match.awayTeam?.id);
-        await delay(2000);
+        await delay(7000);
         const homeFixtures  = await fetchTeamFixtures(match.homeTeam?.id);
-        await delay(2000);
+        await delay(7000);
         const awayFixtures  = await fetchTeamFixtures(match.awayTeam?.id);
-        await delay(2000);
+        await delay(7000);
         const draft = await generateDraftForMatch(match, standingsMap[code], h2hFixtures, homeFixtures, awayFixtures);
         const draftId = `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         draftStore.set(draftId, draft);
@@ -548,7 +548,7 @@ async function runDailyPreview(targetChatId, dateOffset = 0) {
         );
 
         // Delay 2s giữa các lần gọi Gemini tránh rate limit
-        await delay(2000);
+        await delay(7000);
       } catch (e) {
         await bot.telegram.sendMessage(
           targetChatId,
