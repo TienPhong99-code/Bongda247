@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "chromium", "nss", "nspr", "atk", "at-spi2-atk", "at-spi2-core", "cups", "libdrm", "dbus", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "libxkbcommon", "mesa", "expat", "pango", "cairo", "glib", "fontconfig", "freetype", "liberation_ttf"]
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps"]

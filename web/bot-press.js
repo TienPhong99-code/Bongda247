@@ -7,6 +7,7 @@ import { createClient } from "@sanity/client";
 import axios from "axios";
 import cron from "node-cron";
 import RssParser from "rss-parser";
+import { generateMatchPreviewImage } from "./matchPreviewImage.js";
 
 // ============================================================
 // 1. KHỞI TẠO
@@ -1010,7 +1011,30 @@ bot.on("callback_query", async (ctx) => {
     try {
       const { data, categoryId } = draft;
 
-      // Fetch ảnh: ưu tiên cầu thủ → đội nổi bật → fallback về đội nhà/khách
+      // 1. Tạo ảnh preview bằng Puppeteer (mainImage)
+      let mainImageAssetId = null;
+      try {
+        const previewBuffer = await generateMatchPreviewImage({
+          homeTeam: data.homeTeam,
+          awayTeam: data.awayTeam,
+          matchTime: data.matchTime,
+          matchDate: data.matchDate || null,
+          leagueName: data.leagueName || "Premier League",
+          homePlayer: data.mainPlayer || null,
+          awayPlayer: null,
+        });
+        const previewAsset = await sanity.assets.upload(
+          "image",
+          previewBuffer,
+          { filename: `preview-${createSlug(data.homeTeam)}-vs-${createSlug(data.awayTeam)}-${Date.now()}.png` }
+        );
+        mainImageAssetId = previewAsset._id;
+        console.log("✅ Preview image uploaded:", mainImageAssetId);
+      } catch (e) {
+        console.warn("⚠️ Không tạo được preview image:", e.message);
+      }
+
+      // 2. Fetch TheSportsDB → ảnh in-content (chèn giữa bài)
       let sportsDbImageUrl = null;
       let sportsDbLabel = data.title;
       if (data.mainPlayer) {
@@ -1030,22 +1054,21 @@ bot.on("callback_query", async (ctx) => {
         if (sportsDbImageUrl) sportsDbLabel = data.awayTeam;
       }
 
+      // Nếu không tạo được preview → dùng TheSportsDB làm mainImage
       const sportsDbAssetId = sportsDbImageUrl
         ? await uploadImageFromUrl(sportsDbImageUrl, sportsDbLabel)
         : null;
+      if (!mainImageAssetId) mainImageAssetId = sportsDbAssetId;
 
-      // Tạo caption + credit cho ảnh in-content
+      // Caption cho ảnh in-content
       let sportsDbCaption = "";
       if (data.mainPlayer) {
-        sportsDbCaption = data.mainTeam
-          ? `${data.mainPlayer} - ${data.mainTeam}`
-          : data.mainPlayer;
+        sportsDbCaption = data.mainTeam ? `${data.mainPlayer} - ${data.mainTeam}` : data.mainPlayer;
       } else if (data.mainTeam) {
         sportsDbCaption = data.mainTeam;
       } else {
         sportsDbCaption = `${data.homeTeam} vs ${data.awayTeam}`;
       }
-      // Ảnh làm thumbnail (mainImage) và chèn vào giữa bài (sau section 0)
       const contentImages = sportsDbAssetId
         ? [null, { id: sportsDbAssetId, caption: sportsDbCaption, credit: "TheSportsDB" }]
         : [];
@@ -1055,8 +1078,8 @@ bot.on("callback_query", async (ctx) => {
         title: data.title,
         slug: { _type: "slug", current: `${createSlug(data.title)}-${Date.now()}` },
         excerpt: data.excerpt,
-        mainImage: sportsDbAssetId
-          ? { _type: "image", asset: { _type: "reference", _ref: sportsDbAssetId } }
+        mainImage: mainImageAssetId
+          ? { _type: "image", asset: { _type: "reference", _ref: mainImageAssetId } }
           : undefined,
         content: buildPortableText(data.sections || [], contentImages, sportsDbCaption),
         category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
