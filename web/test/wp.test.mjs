@@ -83,15 +83,16 @@ test("createPost gắn category, featured image, tag và meta nguồn", async ()
 
   const res = await fetch(`${process.env.WP_URL}/wp-json/wp/v2/posts/${post.id}`);
   const body = await res.json();
+
+  // resolveTags tạo tag "Arsenal"/"Chelsea" thật trên WP — dọn luôn để khỏi rác lại.
+  body.tags.forEach((id) => created.tags.push(id));
+
   assert.equal(body.title.rendered, "Bài test tự động");
   assert.deepEqual(body.categories, [cats["ngoai-hang-anh"].id]);
   assert.equal(body.featured_media, media.id);
   assert.equal(body.tags.length, 2);
   assert.equal(body.meta.source_url, "https://example.com/bai-goc");
   assert.ok(body.content.rendered.includes("Mục một"));
-
-  // resolveTags tạo tag "Arsenal"/"Chelsea" thật trên WP — dọn luôn để khỏi rác lại.
-  body.tags.forEach((id) => created.tags.push(id));
 });
 
 // Finding 4: chứng minh resolveTags không tạo trùng tag khi gọi lại với tên đã tồn tại.
@@ -103,6 +104,8 @@ test("resolveTags dùng lại tag đã có, không tạo trùng", async () => {
   const tagName = `Tag test trùng lặp ${Date.now()}`;
 
   const first = await wp.resolveTags([tagName]);
+  if (first.length > 0) created.tags.push(first[0]);
+
   const second = await wp.resolveTags([tagName]);
 
   assert.equal(first.length, 1);
@@ -112,7 +115,6 @@ test("resolveTags dùng lại tag đã có, không tạo trùng", async () => {
     second[0],
     "resolveTags phải trả về cùng 1 term ID khi gọi lại với tên tag giống nhau"
   );
-  created.tags.push(first[0]);
 
   const res = await fetch(
     `${process.env.WP_URL}/wp-json/wp/v2/tags?search=${encodeURIComponent(tagName)}`
