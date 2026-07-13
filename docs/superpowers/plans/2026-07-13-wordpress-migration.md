@@ -1255,7 +1255,7 @@ git commit -m "feat(theme): skeleton bongda247 — build Tailwind, header, foote
   - `bd_hot_posts(int $n = 5): WP_Query`
   - `bd_sidebar_posts(int $n = 10): WP_Query`
   - `bd_insights(int $n = 15): WP_Query`
-  - `bd_insight_is_upcoming(string $match_time): bool`
+  - `bd_insight_is_upcoming(string $match_time, string $match_date = ''): bool`
 
 ---
 
@@ -1300,14 +1300,26 @@ function bd_insights($n = 15) {
 }
 
 /**
- * Lọc insight đã qua ngày — port nguyên logic của MatchInsights.astro.
- * match_time có dạng "HH:mm - DD/MM". Không có "/" thì cho hiển thị.
+ * Insight còn nên hiển thị không?
  *
- * Lưu ý: logic này so sánh ngày/tháng, không so năm — sẽ sai qua giao thừa.
- * Giữ nguyên hành vi cũ có chủ đích; cron 07:55 của bot đã xoá insight quá hạn
- * nên lỗi không tích tụ.
+ * Ưu tiên $match_date (ISO UTC đầy đủ, do bot lấy từ football-data.org) — chính xác
+ * và đúng cả khi bắc cầu qua năm mới.
+ *
+ * Chỉ khi không có $match_date (insight nhập tay qua Telegram) mới rơi về parse chuỗi
+ * "HH:mm - DD/MM". Nhánh fallback này so ngày/tháng mà không so năm nên sai quanh
+ * giao thừa — chấp nhận được vì nó chỉ áp dụng cho insight thủ công.
  */
-function bd_insight_is_upcoming($match_time) {
+function bd_insight_is_upcoming($match_time, $match_date = '') {
+    // Nhánh chính: có datetime đầy đủ.
+    if ($match_date) {
+        $ts = strtotime($match_date);
+        if ($ts) {
+            // Cho hiển thị tới 3 tiếng sau giờ bóng lăn — khớp ngưỡng cron dọn dẹp của bot.
+            return $ts > (time() - 3 * HOUR_IN_SECONDS);
+        }
+    }
+
+    // Fallback: chỉ có chuỗi "HH:mm - DD/MM".
     if (!$match_time) {
         return false;
     }
@@ -1471,8 +1483,9 @@ $flame    = get_stylesheet_directory_uri() . '/assets/images/flame.png';
       <?php while ($insights->have_posts()) : $insights->the_post();
           $id         = get_the_ID();
           $match_time = (string) get_post_meta($id, 'match_time', true);
+          $match_date = (string) get_post_meta($id, 'match_date', true);
 
-          if (!bd_insight_is_upcoming($match_time)) {
+          if (!bd_insight_is_upcoming($match_time, $match_date)) {
               continue;
           }
 

@@ -162,7 +162,9 @@ Symlink:
 
 ### Lọc insight quá hạn (giữ nguyên logic Astro)
 
-`MatchInsights.astro` lọc theo `match_time` chuỗi `"HH:mm - DD/MM"`: bỏ item có `month < currentMonth`, hoặc cùng tháng và `day < currentDay`. Port nguyên si sang PHP trong `match-insights.php`. (Logic này sai qua giao thừa năm — chấp nhận, giữ nguyên hành vi hiện tại; bot đã có cron 07:55 xoá insight cũ nên vấn đề không tích tụ.)
+Ưu tiên `match_date` (ISO UTC đầy đủ): hiển thị tới 3 tiếng sau giờ bóng lăn — khớp ngưỡng cron dọn dẹp của bot, và đúng cả khi bắc cầu qua năm mới.
+
+Insight nhập tay qua Telegram không có `match_date` → fallback về parse chuỗi `"HH:mm - DD/MM"` như Astro (so ngày/tháng, không so năm).
 
 ### Dark/light
 
