@@ -49,22 +49,68 @@ async function main() {
   const cats = await wp.fetchCategories();
   console.log(`📁 ${Object.keys(cats).length} danh mục có sẵn`);
 
+  // Bước 1: Xóa dữ liệu cũ từ lần chạy trước
+  console.log("\n🧹 Kiểm tra & xóa dữ liệu từ lần chạy trước...");
+  const existingPosts = await wp.listPosts(100);
+  let deletedPostsCount = 0;
+
+  // Xóa bài viết có tiêu đề khớp với POSTS array
+  const postTitles = new Set(POSTS.map(p => p.title));
+  for (const post of existingPosts) {
+    if (postTitles.has(post.title) && post.id !== 1) { // Giữ lại "Hello world!" (id=1)
+      await wp.deleteById(post.id, "posts");
+      console.log(`   ❌ Xoá bài: ${post.title}`);
+      deletedPostsCount++;
+    }
+  }
+
+  // Xóa insights có cặp homeTeam/awayTeam khớp với INSIGHTS array
+  const existingInsights = await wp.listInsights(100);
+  let deletedInsightsCount = 0;
+
+  const insightPairs = new Set(
+    INSIGHTS.map(i => `${i.homeTeam}|${i.awayTeam}`)
+  );
+  for (const insight of existingInsights) {
+    const pair = `${insight.homeTeam}|${insight.awayTeam}`;
+    if (insightPairs.has(pair)) {
+      await wp.deleteById(insight.id, "match_insight");
+      console.log(`   ❌ Xoá nhận định: ${insight.homeTeam} vs ${insight.awayTeam}`);
+      deletedInsightsCount++;
+    }
+  }
+
+  if (deletedPostsCount === 0 && deletedInsightsCount === 0) {
+    console.log("   ℹ️  Không có dữ liệu cũ cần xóa");
+  } else {
+    console.log(`   ✓ Đã xóa ${deletedPostsCount} bài viết + ${deletedInsightsCount} nhận định`);
+  }
+
+  // Bước 2: Seed dữ liệu mới
+  console.log("\n🌱 Seed dữ liệu mới...");
   for (const p of POSTS) {
     const media = await uploadFromUrl(p.img, `seed-${p.cat}-${Date.now()}.jpg`);
+    const catId = cats[p.cat]?.id ?? null;
+
+    // Warning nếu danh mục không tìm thấy
+    if (!cats[p.cat]) {
+      console.warn(`⚠️  Danh mục "${p.cat}" không tìm thấy — gán vào "Uncategorized"`);
+    }
+
     const post = await wp.createPost({
       title: p.title,
       html: articleHtml(p.title),
       excerpt: `${p.title} — cập nhật chi tiết diễn biến, phân tích chiến thuật và nhận định chuyên sâu.`,
-      categoryId: cats[p.cat]?.id ?? null,
+      categoryId: catId,
       tags: ["Bóng đá", "Phân tích"],
       featuredMedia: media.id,
     });
-    console.log(`📰 ${post.id} — ${p.title}`);
+    console.log(`   📰 ${post.id} — ${p.title}`);
   }
 
   for (const i of INSIGHTS) {
     const insight = await wp.createInsight(i);
-    console.log(`⚽ ${insight.id} — ${i.homeTeam} vs ${i.awayTeam}${i.hot ? " 🔥" : ""}`);
+    console.log(`   ⚽ ${insight.id} — ${i.homeTeam} vs ${i.awayTeam}${i.hot ? " 🔥" : ""}`);
   }
 
   console.log("\n✅ Seed xong. Mở http://bongda247.local");
