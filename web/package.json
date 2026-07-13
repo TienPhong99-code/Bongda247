@@ -7,7 +7,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "seed": "node scripts/seed-wp.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
