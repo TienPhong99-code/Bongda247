@@ -83,3 +83,33 @@ function bd_register_meta() {
         ]);
     }
 }
+
+/**
+ * Bảo mật: tước quyền unfiltered_html của user bot.
+ *
+ * Trên site single-site, role editor mặc định có capability unfiltered_html,
+ * nghĩa là content_save_pre KHÔNG chạy qua wp_kses_post — nội dung post do
+ * user bot lưu được ghi thẳng vào DB và render RAW qua the_content(). Bot
+ * đăng bài bằng HTML do Gemini viết lại từ RSS bên thứ ba: một lần bị
+ * prompt-injection hoặc hallucination chèn <script>/onerror... sẽ được lưu
+ * y nguyên và chạy trong trình duyệt người xem.
+ *
+ * Bot chỉ cần phát <h2>, <p>, <figure><img><figcaption> — các tag này đều
+ * nằm trong whitelist mặc định của wp_kses_post nên việc bị KSES lọc không
+ * ảnh hưởng gì tới đăng bài, upload ảnh, tạo tag hay ghi post meta.
+ *
+ * Dùng filter user_has_cap (chạy mỗi lần current_user_can() được gọi, kể cả
+ * sau khi WP xác thực Application Password ở set_current_user) thay vì sửa
+ * capability trong DB — filter nằm trong version control, không thể bị
+ * plugin khác hay thao tác reset role âm thầm gỡ bỏ. Nhận diện qua
+ * user_login (không hardcode ID) để không phụ thuộc DB cụ thể của môi
+ * trường nào.
+ */
+add_filter('user_has_cap', 'bd_deny_unfiltered_html_for_bot', 10, 4);
+function bd_deny_unfiltered_html_for_bot($allcaps, $caps, $args, $user) {
+    if (!empty($allcaps['unfiltered_html']) && isset($user->user_login) && $user->user_login === 'bot') {
+        $allcaps['unfiltered_html'] = false;
+    }
+
+    return $allcaps;
+}
