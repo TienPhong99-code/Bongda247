@@ -1,7 +1,11 @@
 <?php
 defined('ABSPATH') || exit;
-$insights = bd_insights(15);
-$flame    = get_stylesheet_directory_uri() . '/assets/images/flame.png';
+// Số insight tối đa hiển thị trên carousel trang chủ — bd_insights() lấy dư ứng viên hơn
+// con số này (xem inc/query.php) để lọc hạn xong vẫn còn đủ bài hợp lệ mà cắt.
+$max_insights = 15;
+$insights     = bd_insights($max_insights);
+$flame        = get_stylesheet_directory_uri() . '/assets/images/flame.png';
+$rendered     = 0;
 ?>
 <section class="py-8">
   <div class="flex items-center justify-between mb-6">
@@ -25,6 +29,11 @@ $flame    = get_stylesheet_directory_uri() . '/assets/images/flame.png';
   <div class="swiper insightSwiper">
     <div class="swiper-wrapper">
       <?php while ($insights->have_posts()) : $insights->the_post();
+          // Ứng viên đã lấy dư ở bd_insights() — đủ số hợp lệ cần thì dừng, không render thêm.
+          if ($rendered >= $max_insights) {
+              break;
+          }
+
           $id         = get_the_ID();
           $match_time = (string) get_post_meta($id, 'match_time', true);
           $match_date = (string) get_post_meta($id, 'match_date', true);
@@ -32,6 +41,8 @@ $flame    = get_stylesheet_directory_uri() . '/assets/images/flame.png';
           if (!bd_insight_is_upcoming($match_time, $match_date)) {
               continue;
           }
+
+          $rendered++;
 
           $home       = (string) get_post_meta($id, 'home_team', true);
           $away       = (string) get_post_meta($id, 'away_team', true);
