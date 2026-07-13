@@ -105,7 +105,7 @@ Post meta (tất cả đều `show_in_rest: true`, `single: true` — kể cả 
 | `away_team` | string | |
 | `match_time` | string | Format `"HH:mm - DD/MM"` — hiển thị |
 | `match_date` | string (ISO datetime) | UTC thật; **rỗng** với insight thủ công |
-| `hot` | boolean | Trận nổi bật |
+| `hot` | integer (0/1) | Trận nổi bật. **Không dùng boolean** — WP lưu `false` thành chuỗi rỗng, khiến `WP_Query orderby meta_value_num` sắp xếp không ổn định. |
 | `insights` | array of string | `show_in_rest` cần khai `schema.items.type = string` |
 | `prediction` | string | |
 
