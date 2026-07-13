@@ -30,7 +30,10 @@ function decodeEntities(str = "") {
 }
 
 function mimeFromName(filename) {
-  const ext = filename.split(".").pop().toLowerCase();
+  // Bỏ query string (VD "preview.png?v=2") trước khi tách đuôi file,
+  // nếu không sẽ đọc nhầm ext thành "png?v=2" và luôn rơi về mặc định image/jpeg.
+  const clean = String(filename || "").split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop().toLowerCase();
   return {
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
@@ -41,13 +44,47 @@ function mimeFromName(filename) {
 }
 
 /**
+ * Chuẩn hoá tên file thành ASCII an toàn cho HTTP header.
+ * Header (Content-Disposition) chỉ nhận ký tự Latin-1 — tên file tiếng Việt có dấu
+ * (ộ, ư, ơ, đ...) sẽ khiến Node ném TypeError nếu đưa thẳng vào header.
+ * Đây là boundary HTTP nên phải tự làm sạch, không dựa vào caller tự slugify trước.
+ */
+function sanitizeFilename(filename) {
+  const raw = String(filename || "").split("?")[0].split("#")[0]; // bỏ query string / hash nếu tên lấy từ URL
+  const lastDot = raw.lastIndexOf(".");
+  const hasExt = lastDot > 0 && lastDot < raw.length - 1;
+  const base = hasExt ? raw.slice(0, lastDot) : raw;
+  const ext = hasExt
+    ? raw
+        .slice(lastDot + 1)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+    : "";
+
+  const slug = base
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // bỏ dấu (combining marks) sau khi NFD decompose
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  // Nếu tên gốc toàn ký tự không map được về ASCII (VD chữ Hán, emoji...)
+  // vẫn phải trả về tên dùng được, không để rỗng.
+  const safeBase = slug || `file-${Date.now()}`;
+  return ext ? `${safeBase}.${ext}` : safeBase;
+}
+
+/**
  * Upload ảnh lên Media Library.
  * Dùng raw binary + Content-Disposition (WP hỗ trợ sẵn) → không cần multipart/form-data.
  */
 export async function uploadMedia(buffer, filename = `bongda247-${Date.now()}.jpg`) {
+  const safeFilename = sanitizeFilename(filename);
   const res = await api.post("/media", buffer, {
     headers: {
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${safeFilename}"`,
       "Content-Type": mimeFromName(filename),
     },
     maxBodyLength: Infinity,
@@ -157,7 +194,7 @@ export async function listInsights(n = 10) {
   }));
 }
 
-/** type: "posts" | "match_insight" */
+/** type: REST base bất kỳ — "posts" | "match_insight" | "media" | "tags" | ... */
 export async function deleteById(id, type = "posts") {
   await api.delete(`/${type}/${id}`, { params: { force: true } });
 }
