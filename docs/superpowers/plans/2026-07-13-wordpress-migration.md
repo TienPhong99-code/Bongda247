@@ -1699,11 +1699,11 @@ git commit -m "feat(theme): trang chủ — hot news slider, sidebar, match insi
 
 Thêm style cho nội dung bài vào `src/main.css`, trong `@layer components`:
 ```css
-  .prose-bd h2       { @apply font-hemi text-2xl uppercase mt-8 mb-4; }
-  .prose-bd p        { @apply mb-4 leading-relaxed text-secondary; }
+  .prose-bd h2       { @apply text-2xl uppercase mt-8 mb-4; font-family: var(--font-hemi); }
+  .prose-bd p        { @apply mb-4 leading-relaxed; color: var(--bd-secondary); }
   .prose-bd figure   { @apply my-8; }
   .prose-bd img      { @apply w-full h-auto rounded-xl; }
-  .prose-bd figcaption { @apply text-xs text-secondary text-center mt-2; }
+  .prose-bd figcaption { @apply text-xs text-center mt-2; color: var(--bd-secondary); }
 ```
 
 - [ ] **Step 2: Viết `archive.php`**
