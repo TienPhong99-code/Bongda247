@@ -3,7 +3,7 @@ import { Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 // import Anthropic from "@anthropic-ai/sdk"; // TODO: chuyển sang Claude API sau
-import { createClient } from "@sanity/client";
+import * as wp from "./lib/wp.js";
 import axios from "axios";
 import cron from "node-cron";
 import RssParser from "rss-parser";
@@ -25,14 +25,6 @@ const createSlug = (text) =>
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 
-const sanity = createClient({
-  projectId: process.env.SANITY_PROJECT_ID,
-  dataset: process.env.SANITY_DATASET || "production",
-  token: process.env.SANITY_API_TOKEN,
-  useCdn: false,
-  apiVersion: "2024-03-03",
-});
-
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
@@ -47,7 +39,7 @@ const OWNER_CHAT_ID = process.env.TELEGRAM_OWNER_CHAT_ID;
 const FD_BASE = "https://api.football-data.org/v4";
 const FD_HEADERS = { "X-Auth-Token": process.env.PUBLIC_FOOTBALL_DATA_KEY };
 
-// Map mã giải → Sanity slug + thông tin hiển thị
+// Map mã giải → WordPress category slug + thông tin hiển thị
 const LEAGUE_MAP = {
   PL:  { slug: "ngoai-hang-anh",   name: "Ngoại hạng Anh",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
   // CL:  { slug: "champions-league", name: "Champions League", flag: "⭐"          },
@@ -154,20 +146,14 @@ function selectMatches(matches) {
 }
 
 // ============================================================
-// 3. DYNAMIC CATEGORIES — tải từ Sanity, không hardcode ID
+// 3. DYNAMIC CATEGORIES — tải từ WordPress, không hardcode ID
 // ============================================================
 
 let CATEGORIES = {};
 
 async function loadCategories() {
   try {
-    const cats = await sanity.fetch(
-      `*[_type == "category"]{ _id, "slug": slug.current, title }`
-    );
-    CATEGORIES = {};
-    cats.forEach((c) => {
-      CATEGORIES[c.slug] = { id: c._id, title: c.title };
-    });
+    CATEGORIES = await wp.fetchCategories();
     console.log(
       `✅ Đã tải ${Object.keys(CATEGORIES).length} danh mục:`,
       Object.keys(CATEGORIES).join(", ")
@@ -250,52 +236,54 @@ function stripHtml(str) {
   return (str ?? "").replace(/<[^>]*>/g, "").trim();
 }
 
-// images[] có thể là: null | string (assetId) | { id, caption, credit }
-function normalizeImage(v) {
-  if (!v) return null;
-  if (typeof v === "string") return { id: v, caption: null, credit: null };
-  return v;
+// Escape cho attribute HTML (alt, title) — escapeHtml hiện có chỉ escape &, <, >
+function escapeAttr(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function buildPortableText(sections, images = [], defaultAlt = "") {
-  return sections.flatMap((section, i) => {
-    const headingText = stripHtml(section.heading);
-    const now = Date.now();
+// v: null | { id, url, caption?, credit? }
+function normalizeImage(v) {
+  if (!v) return null;
+  return { caption: null, credit: null, ...v };
+}
 
-    // Hỗ trợ cả "paragraphs" (array) lẫn "text" (string fallback)
-    const paragraphs = Array.isArray(section.paragraphs) && section.paragraphs.length
-      ? section.paragraphs
-      : [section.text ?? ""];
+// images[] có thể là: null | { id, url, caption, credit }
+// images[0] bỏ trống (dành cho mainImage), images[i+1] chèn sau section i.
+function buildHtml(sections, images = [], defaultAlt = "") {
+  return sections
+    .map((section, i) => {
+      const heading = stripHtml(section.heading);
 
-    const blocks = [
-      {
-        _type: "block",
-        _key: `h2-${i}-${now}`,
-        style: "h2",
-        markDefs: [],
-        children: [{ _type: "span", _key: `sh-${i}`, text: headingText }],
-      },
-      ...paragraphs.map((para, j) => ({
-        _type: "block",
-        _key: `p-${i}-${j}-${now + j}`,
-        style: "normal",
-        markDefs: [],
-        children: [{ _type: "span", _key: `sp-${i}-${j}`, text: stripHtml(para) }],
-      })),
-    ];
-    const img = normalizeImage(images[i + 1]);
-    if (img) {
-      blocks.push({
-        _type: "image",
-        _key: `img-${i}-${now}`,
-        asset: { _type: "reference", _ref: img.id },
-        alt: defaultAlt || headingText,
-        ...(img.caption && { caption: img.caption }),
-        ...(img.credit && { credit: img.credit }),
-      });
-    }
-    return blocks;
-  });
+      const paragraphs =
+        Array.isArray(section.paragraphs) && section.paragraphs.length
+          ? section.paragraphs
+          : [section.text ?? ""];
+
+      let html = `<h2>${escapeHtml(heading)}</h2>\n`;
+      html += paragraphs
+        .map((p) => `<p>${escapeHtml(stripHtml(p))}</p>`)
+        .join("\n");
+
+      const img = normalizeImage(images[i + 1]);
+      if (img?.url) {
+        const alt = escapeAttr(defaultAlt || heading);
+        const caption = img.caption ? escapeHtml(img.caption) : "";
+        const credit = img.credit ? ` <cite>(${escapeHtml(img.credit)})</cite>` : "";
+        html += `\n<figure class="wp-block-image size-large">`;
+        html += `<img src="${escapeAttr(img.url)}" alt="${alt}" class="wp-image-${img.id}" />`;
+        if (caption || credit) {
+          html += `<figcaption>${caption}${credit}</figcaption>`;
+        }
+        html += `</figure>`;
+      }
+
+      return html;
+    })
+    .join("\n\n");
 }
 
 async function uploadPhotos(ctx, photos) {
@@ -303,8 +291,10 @@ async function uploadPhotos(ctx, photos) {
     photos.map(async (fileId) => {
       const link = await ctx.telegram.getFileLink(fileId);
       const res = await axios.get(link.href, { responseType: "arraybuffer" });
-      const asset = await sanity.assets.upload("image", Buffer.from(res.data));
-      return asset._id;
+      return wp.uploadMedia(
+        Buffer.from(res.data),
+        `telegram-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+      );
     })
   );
 }
@@ -634,7 +624,7 @@ bot.start((ctx) =>
       "/fetchnews — Fetch tin tức mới từ RSS\n" +
       "/list — Xem & xóa insights đang hiển thị\n" +
       "/posts — Xem & xóa bài viết gần đây\n" +
-      "/reload — Tải lại danh mục từ Sanity",
+      "/reload — Tải lại danh mục từ WordPress",
     { parse_mode: "Markdown" }
   )
 );
@@ -669,14 +659,10 @@ bot.command("tomorrow", async (ctx) => {
 
 bot.command("list", async (ctx) => {
   try {
-    const insights = await sanity.fetch(
-      `*[_type == "matchInsight"] | order(publishedAt desc) [0...10] { _id, homeTeam, awayTeam, matchTime, hot }`
-    );
+    const insights = await wp.listInsights(10);
     if (!insights.length) return ctx.reply("📭 Chưa có insight nào.");
 
-    await ctx.reply(`📋 *${insights.length} Insight gần nhất:*`, {
-      parse_mode: "Markdown",
-    });
+    await ctx.reply(`📋 *${insights.length} Insight gần nhất:*`, { parse_mode: "Markdown" });
     for (const item of insights) {
       const badge = item.hot ? "🔥" : "⚽";
       await ctx.reply(
@@ -684,9 +670,7 @@ bot.command("list", async (ctx) => {
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "🗑 Xóa", callback_data: `delete_insight_${item._id}` }],
-            ],
+            inline_keyboard: [[{ text: "🗑 Xóa", callback_data: `delete_insight_${item.id}` }]],
           },
         }
       );
@@ -698,24 +682,23 @@ bot.command("list", async (ctx) => {
 
 bot.command("posts", async (ctx) => {
   try {
-    const posts = await sanity.fetch(
-      `*[_type == "post"] | order(publishedAt desc) [0...8] { _id, title, publishedAt, "category": category->title }`
-    );
+    const posts = await wp.listPosts(8);
     if (!posts.length) return ctx.reply("📭 Chưa có bài viết nào.");
 
-    await ctx.reply(`📋 *${posts.length} bài viết gần nhất:*`, {
-      parse_mode: "Markdown",
-    });
+    // id danh mục → tên (CATEGORIES là map slug → {id, title})
+    const catNameById = {};
+    Object.values(CATEGORIES).forEach((c) => { catNameById[c.id] = c.title; });
+
+    await ctx.reply(`📋 *${posts.length} bài viết gần nhất:*`, { parse_mode: "Markdown" });
     for (const post of posts) {
-      const date = new Date(post.publishedAt).toLocaleDateString("vi-VN");
+      const date = new Date(post.date).toLocaleDateString("vi-VN");
+      const catName = catNameById[post.categoryIds[0]] ?? "—";
       await ctx.reply(
-        `📰 *${post.title}*\n🏆 ${post.category ?? "—"}  📅 ${date}`,
+        `📰 *${post.title}*\n🏆 ${catName}  📅 ${date}`,
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "🗑 Xóa", callback_data: `delete_post_${post._id}` }],
-            ],
+            inline_keyboard: [[{ text: "🗑 Xóa", callback_data: `delete_post_${post.id}` }]],
           },
         }
       );
@@ -830,8 +813,7 @@ bot.action("confirm_insight", async (ctx) => {
   if (!data || data.type !== "matchInsight")
     return ctx.reply("❌ Dữ liệu hết hạn.");
   try {
-    await sanity.create({
-      _type: "matchInsight",
+    await wp.createInsight({
       homeTeam: data.homeTeam,
       awayTeam: data.awayTeam,
       matchTime: data.matchTime,
@@ -839,7 +821,6 @@ bot.action("confirm_insight", async (ctx) => {
       hot: !!data.hot,
       insights: data.insights,
       prediction: data.prediction,
-      publishedAt: new Date().toISOString(),
     });
     await ctx.editMessageText(
       `✅ *Đã đăng Insight!*\n\n🏟 *${data.homeTeam}* vs *${data.awayTeam}*\n⏰ ${data.matchTime}`,
@@ -857,21 +838,13 @@ bot.action("confirm_post", async (ctx) => {
     return ctx.answerCbQuery("❌ Dữ liệu hết hạn!");
   ctx.answerCbQuery("🚀 Đang đăng bài...");
   try {
-    const assetIds =
-      data.photos.length > 0 ? await uploadPhotos(ctx, data.photos) : [];
-    await sanity.create({
-      _type: "post",
+    const assets = data.photos.length > 0 ? await uploadPhotos(ctx, data.photos) : [];
+    await wp.createPost({
       title: data.title,
-      slug: { _type: "slug", current: `${createSlug(data.title)}-${Date.now()}` },
-      mainImage: assetIds[0]
-        ? { _type: "image", asset: { _type: "reference", _ref: assetIds[0] } }
-        : undefined,
+      html: buildHtml(data.sections || [], assets),
       excerpt: data.excerpt,
-      content: buildPortableText(data.sections || [], assetIds),
-      category: data.categoryId
-        ? { _type: "reference", _ref: data.categoryId }
-        : undefined,
-      publishedAt: new Date().toISOString(),
+      categoryId: data.categoryId ?? null,
+      featuredMedia: assets[0]?.id ?? null,
     });
     await ctx.editMessageText(
       `✅ *Đã xuất bản!*\n\n📰 ${data.title}`,
@@ -925,8 +898,7 @@ bot.on("callback_query", async (ctx) => {
     if (!draft) return ctx.answerCbQuery("❌ Bản nháp hết hạn!");
 
     try {
-      await sanity.create({
-        _type: "matchInsight",
+      await wp.createInsight({
         homeTeam: draft.homeTeam,
         awayTeam: draft.awayTeam,
         matchTime: draft.matchTime,
@@ -934,7 +906,6 @@ bot.on("callback_query", async (ctx) => {
         hot: !!draft.hot,
         insights: draft.insights,
         prediction: draft.prediction,
-        publishedAt: new Date().toISOString(),
       });
       ctx.answerCbQuery("✅ Đã đăng lên Slide!");
       ctx.editMessageText(
@@ -1012,7 +983,7 @@ bot.on("callback_query", async (ctx) => {
       const { data, categoryId } = draft;
 
       // 1. Tạo ảnh preview bằng Puppeteer (mainImage)
-      let mainImageAssetId = null;
+      let mainImage = null;
       try {
         const previewBuffer = await generateMatchPreviewImage({
           homeTeam: data.homeTeam,
@@ -1024,13 +995,11 @@ bot.on("callback_query", async (ctx) => {
           homePlayer: data.mainPlayer || null,
           awayPlayer: null,
         });
-        const previewAsset = await sanity.assets.upload(
-          "image",
+        mainImage = await wp.uploadMedia(
           previewBuffer,
-          { filename: `preview-${createSlug(data.homeTeam)}-vs-${createSlug(data.awayTeam)}-${Date.now()}.png` }
+          `preview-${createSlug(data.homeTeam)}-vs-${createSlug(data.awayTeam)}-${Date.now()}.jpg`
         );
-        mainImageAssetId = previewAsset._id;
-        console.log("✅ Preview image uploaded:", mainImageAssetId);
+        console.log("✅ Preview image uploaded:", mainImage.id);
       } catch (e) {
         console.warn("⚠️ Không tạo được preview image:", e.message);
       }
@@ -1056,10 +1025,10 @@ bot.on("callback_query", async (ctx) => {
       }
 
       // Nếu không tạo được preview → dùng TheSportsDB làm mainImage
-      const sportsDbAssetId = sportsDbImageUrl
+      const sportsDbImage = sportsDbImageUrl
         ? await uploadImageFromUrl(sportsDbImageUrl, sportsDbLabel)
         : null;
-      if (!mainImageAssetId) mainImageAssetId = sportsDbAssetId;
+      if (!mainImage) mainImage = sportsDbImage;
 
       // Caption cho ảnh in-content
       let sportsDbCaption = "";
@@ -1070,22 +1039,17 @@ bot.on("callback_query", async (ctx) => {
       } else {
         sportsDbCaption = `${data.homeTeam} vs ${data.awayTeam}`;
       }
-      const contentImages = sportsDbAssetId
-        ? [null, { id: sportsDbAssetId, caption: sportsDbCaption, credit: "TheSportsDB" }]
+      const contentImages = sportsDbImage
+        ? [null, { ...sportsDbImage, caption: sportsDbCaption, credit: "TheSportsDB" }]
         : [];
 
-      await sanity.create({
-        _type: "post",
+      await wp.createPost({
         title: data.title,
-        slug: { _type: "slug", current: `${createSlug(data.title)}-${Date.now()}` },
+        html: buildHtml(data.sections || [], contentImages, sportsDbCaption),
         excerpt: data.excerpt,
-        mainImage: mainImageAssetId
-          ? { _type: "image", asset: { _type: "reference", _ref: mainImageAssetId } }
-          : undefined,
-        content: buildPortableText(data.sections || [], contentImages, sportsDbCaption),
-        category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
-        hashtags: data.hashtags ?? [],
-        publishedAt: new Date().toISOString(),
+        categoryId: categoryId ?? null,
+        tags: data.hashtags ?? [],
+        featuredMedia: mainImage?.id ?? null,
       });
 
       ctx.editMessageText(
@@ -1112,7 +1076,7 @@ bot.on("callback_query", async (ctx) => {
   if (action.startsWith("delete_insight_")) {
     const id = action.replace("delete_insight_", "");
     try {
-      await sanity.delete(id);
+      await wp.deleteById(id, "match_insight");
       ctx.answerCbQuery("✅ Đã xóa!");
       ctx.editMessageText("🗑 *Đã xóa khỏi Slide.*", { parse_mode: "Markdown" });
     } catch {
@@ -1125,7 +1089,7 @@ bot.on("callback_query", async (ctx) => {
   if (action.startsWith("delete_post_")) {
     const id = action.replace("delete_post_", "");
     try {
-      await sanity.delete(id);
+      await wp.deleteById(id, "posts");
       ctx.answerCbQuery("✅ Đã xóa!");
       ctx.editMessageText("🗑 *Bài viết đã được xóa.*", { parse_mode: "Markdown" });
     } catch {
@@ -1145,13 +1109,13 @@ bot.on("callback_query", async (ctx) => {
       const { article, generatedPost, categoryId } = draft;
 
       // Upload ảnh thumbnail (og:image / RSS) → mainImage
-      const assetId = article.imageUrl
+      const mainImage = article.imageUrl
         ? await uploadImageFromUrl(article.imageUrl, generatedPost.title)
         : null;
 
       // Upload ảnh TheSportsDB → chèn vào content sau section đầu tiên
       const sportsDbLabel = generatedPost.mainPlayer || generatedPost.mainTeam || generatedPost.title;
-      const sportsDbAssetId = article.sportsDbImageUrl
+      const sportsDbImage = article.sportsDbImageUrl
         ? await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel)
         : null;
 
@@ -1165,24 +1129,19 @@ bot.on("callback_query", async (ctx) => {
         sportsDbCaption = generatedPost.mainTeam;
       }
       // images[0] = unused, images[1] = sau section 0
-      const contentImages = sportsDbAssetId
-        ? [null, { id: sportsDbAssetId, caption: sportsDbCaption, credit: "TheSportsDB" }]
+      const contentImages = sportsDbImage
+        ? [null, { ...sportsDbImage, caption: sportsDbCaption, credit: "TheSportsDB" }]
         : [];
 
-      await sanity.create({
-        _type: "post",
+      await wp.createPost({
         title: generatedPost.title,
-        slug: { _type: "slug", current: `${createSlug(generatedPost.title)}-${Date.now()}` },
-        mainImage: assetId
-          ? { _type: "image", asset: { _type: "reference", _ref: assetId } }
-          : undefined,
+        html: buildHtml(generatedPost.sections || [], contentImages, sportsDbLabel),
         excerpt: generatedPost.excerpt,
-        content: buildPortableText(generatedPost.sections || [], contentImages, sportsDbLabel),
-        category: categoryId ? { _type: "reference", _ref: categoryId } : undefined,
-        hashtags: generatedPost.hashtags ?? [],
+        categoryId: categoryId ?? null,
+        tags: generatedPost.hashtags ?? [],
+        featuredMedia: mainImage?.id ?? null,
         sourceUrl: article.url,
         sourceCredit: article.source,
-        publishedAt: new Date().toISOString(),
       });
 
       ctx.editMessageCaption
@@ -1422,10 +1381,7 @@ async function uploadImageFromUrl(imageUrl, filename = "") {
     const safeFilename = filename
       ? `${createSlug(filename).slice(0, 80)}.${ext}`
       : `bongda247-${Date.now()}.${ext}`;
-    const asset = await sanity.assets.upload("image", Buffer.from(res.data), {
-      filename: safeFilename,
-    });
-    return asset._id;
+    return await wp.uploadMedia(Buffer.from(res.data), safeFilename);
   } catch {
     return null;
   }
@@ -1588,11 +1544,12 @@ cron.schedule(
   async () => {
     console.log("🧹 Cron: Dọn dẹp matchInsight cũ...");
     try {
-      // Xóa insight có matchDate đã qua hơn 3 tiếng (trận chắc chắn kết thúc)
-      const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-      const stale = await sanity.fetch(
-        `*[_type == "matchInsight" && matchDate < $cutoff]{ _id, homeTeam, awayTeam }`,
-        { cutoff }
+      // Xoá insight có matchDate đã qua hơn 3 tiếng (trận chắc chắn kết thúc).
+      // WP REST không query được meta tuỳ ý → lấy hết rồi lọc trong JS (số lượng luôn nhỏ).
+      const cutoffMs = Date.now() - 3 * 60 * 60 * 1000;
+      const all = await wp.listInsights(100);
+      const stale = all.filter(
+        (i) => i.matchDate && new Date(i.matchDate).getTime() < cutoffMs
       );
 
       if (!stale.length) {
@@ -1600,14 +1557,17 @@ cron.schedule(
         return;
       }
 
-      await Promise.all(stale.map((doc) => sanity.delete(doc._id)));
+      for (const item of stale) {
+        await wp.deleteById(item.id, "match_insight");
+      }
 
-      console.log(`🗑 Đã xóa ${stale.length} insight:`, stale.map((d) => `${d.homeTeam} vs ${d.awayTeam}`).join(", "));
+      const list = stale.map((i) => `• ${i.homeTeam} vs ${i.awayTeam}`).join("\n");
+      console.log(`🧹 Đã xóa ${stale.length} insight cũ.`);
 
       if (OWNER_CHAT_ID) {
         await bot.telegram.sendMessage(
           OWNER_CHAT_ID,
-          `🧹 *Dọn dẹp tự động:* Đã xóa *${stale.length}* insight của các trận đã kết thúc.`,
+          `🧹 *Đã dọn ${stale.length} insight quá hạn:*\n${list}`,
           { parse_mode: "Markdown" }
         );
       }
