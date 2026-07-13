@@ -29,6 +29,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
+// Bắt lỗi toàn cục — không có handler này, một lỗi ném ra (throw) trong bất kỳ
+// bot.action/bot.on nào sẽ là unhandled rejection và Node sẽ kill cả process.
+bot.catch((err, ctx) => {
+  console.error(`❌ Lỗi bot (update type: ${ctx?.updateType ?? "?"}):`, err);
+});
+
 // Chat ID nhận bản nháp hàng ngày — set TELEGRAM_OWNER_CHAT_ID trong .env
 const OWNER_CHAT_ID = process.env.TELEGRAM_OWNER_CHAT_ID;
 
@@ -151,6 +157,9 @@ function selectMatches(matches) {
 
 let CATEGORIES = {};
 
+// Trả về true/false để LAUNCH biết danh mục có tải được hay không — nếu không, bot vẫn
+// chạy nhưng CATEGORIES rỗng và mọi lần ghi lên WordPress sau đó sẽ lỗi (thường là 401).
+// Lỗi đó phải được la lớn ngay lúc boot thay vì chỉ log lặng lẽ rồi im.
 async function loadCategories() {
   try {
     CATEGORIES = await wp.fetchCategories();
@@ -158,8 +167,10 @@ async function loadCategories() {
       `✅ Đã tải ${Object.keys(CATEGORIES).length} danh mục:`,
       Object.keys(CATEGORIES).join(", ")
     );
+    return true;
   } catch (e) {
     console.error("❌ Không tải được danh mục:", e.message);
+    return false;
   }
 }
 
@@ -195,6 +206,13 @@ function escapeHtml(text) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+// Escape ký tự đặc biệt của Markdown (legacy, parse_mode: "Markdown") cho dữ liệu động
+// (VD tên đội). Thiếu bước này, một tên đội chứa "_" hoặc "*" sẽ khiến Telegram từ chối
+// toàn bộ tin nhắn (parse error), operator mất luôn cả thông báo dù thao tác đã thành công.
+function escapeMarkdown(text) {
+  return String(text ?? "").replace(/([_*`[])/g, "\\$1");
 }
 
 
@@ -1058,7 +1076,10 @@ bot.on("callback_query", async (ctx) => {
       );
       matchArticleDraftStore.delete(maId);
     } catch (e) {
-      ctx.answerCbQuery("❌ Lỗi: " + e.message);
+      // Callback query đã được answer ở trên (dòng "🚀 Đang đăng bài...") — Telegram chỉ
+      // cho answer 1 lần nên answerCbQuery ở đây sẽ là no-op và thẻ nháp sẽ đứng yên như
+      // đang thành công. Dùng ctx.reply để lỗi thực sự hiện ra cho operator (giống confirm_post).
+      await ctx.reply("❌ Lỗi đăng bài: " + e.message);
     }
     return;
   }
@@ -1113,11 +1134,16 @@ bot.on("callback_query", async (ctx) => {
         ? await uploadImageFromUrl(article.imageUrl, generatedPost.title)
         : null;
 
-      // Upload ảnh TheSportsDB → chèn vào content sau section đầu tiên
+      // Upload ảnh TheSportsDB → chèn vào content sau section đầu tiên.
+      // runNewsFetch() có thể fallback sportsDbImageUrl = imageUrl khi TheSportsDB không trả
+      // kết quả nào — cùng 1 URL thì dùng lại ảnh mainImage vừa upload thay vì tải + upload
+      // lại lần nữa (WP không dedupe theo content hash như Sanity, sẽ ra 2 file x.jpg/x-1.jpg).
       const sportsDbLabel = generatedPost.mainPlayer || generatedPost.mainTeam || generatedPost.title;
-      const sportsDbImage = article.sportsDbImageUrl
-        ? await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel)
-        : null;
+      const sportsDbImage = !article.sportsDbImageUrl
+        ? null
+        : article.sportsDbImageUrl === article.imageUrl && mainImage
+        ? mainImage
+        : await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel);
 
       // Tạo caption + credit cho ảnh in-content
       let sportsDbCaption = "";
@@ -1156,7 +1182,10 @@ bot.on("callback_query", async (ctx) => {
 
       newsDraftStore.delete(ndId);
     } catch (e) {
-      ctx.answerCbQuery("❌ Lỗi: " + e.message);
+      // Callback query đã answer ở trên ("🚀 Đang đăng bài...") — answerCbQuery lần 2 là
+      // no-op, thẻ nháp sẽ đứng yên như đã đăng thành công. Dùng ctx.reply để lỗi thực sự
+      // hiện ra cho operator (giống confirm_post).
+      await ctx.reply("❌ Lỗi đăng bài: " + e.message);
     }
     return;
   }
@@ -1548,6 +1577,11 @@ cron.schedule(
       // WP REST không query được meta tuỳ ý → lấy hết rồi lọc trong JS (số lượng luôn nhỏ).
       const cutoffMs = Date.now() - 3 * 60 * 60 * 1000;
       const all = await wp.listInsights(100);
+      // 100 là per_page tối đa của WP REST — nếu chạm mốc này, các insight cũ nhất
+      // (chính là những cái cần dọn) có thể đã nằm ngoài trang lấy về mà không hay biết.
+      if (all.length >= 100) {
+        console.warn("⚠️ listInsights(100) trả đủ 100 kết quả — có thể còn insight cũ hơn ngoài giới hạn per_page, chưa được dọn.");
+      }
       const stale = all.filter(
         (i) => i.matchDate && new Date(i.matchDate).getTime() < cutoffMs
       );
@@ -1557,17 +1591,32 @@ cron.schedule(
         return;
       }
 
+      // Xoá độc lập từng item — 1 lỗi (VD 404 do đã bị xóa tay trước đó) không được
+      // làm hỏng cả vòng lặp, nếu không các insight cũ còn lại sẽ không bao giờ được dọn
+      // và thông báo tổng kết bên dưới cũng sẽ không được gửi.
+      const deleted = [];
       for (const item of stale) {
-        await wp.deleteById(item.id, "match_insight");
+        try {
+          await wp.deleteById(item.id, "match_insight");
+          deleted.push(item);
+        } catch (e) {
+          console.warn(`⚠️ Không xóa được insight ${item.id} (${item.homeTeam} vs ${item.awayTeam}): ${e.message}`);
+        }
       }
 
-      const list = stale.map((i) => `• ${i.homeTeam} vs ${i.awayTeam}`).join("\n");
-      console.log(`🧹 Đã xóa ${stale.length} insight cũ.`);
+      if (!deleted.length) {
+        console.log("⚠️ Không có insight nào xóa thành công.");
+        return;
+      }
+
+      // escapeMarkdown: tên đội chứa "_"/"*" không được làm hỏng cả tin nhắn tổng kết
+      const list = deleted.map((i) => `• ${escapeMarkdown(i.homeTeam)} vs ${escapeMarkdown(i.awayTeam)}`).join("\n");
+      console.log(`🧹 Đã xóa ${deleted.length} insight cũ.`);
 
       if (OWNER_CHAT_ID) {
         await bot.telegram.sendMessage(
           OWNER_CHAT_ID,
-          `🧹 *Đã dọn ${stale.length} insight quá hạn:*\n${list}`,
+          `🧹 *Đã dọn ${deleted.length} insight quá hạn:*\n${list}`,
           { parse_mode: "Markdown" }
         );
       }
@@ -1582,7 +1631,7 @@ cron.schedule(
 // 15. LAUNCH
 // ============================================================
 
-loadCategories().then(() => {
+loadCategories().then(async (categoriesLoaded) => {
   bot.launch();
   console.log("🚀 Bongda247 Bot is Running...");
   console.log(
@@ -1590,6 +1639,26 @@ loadCategories().then(() => {
       ? `📨 Daily preview sẽ gửi đến chat ID: ${OWNER_CHAT_ID}`
       : "⚠️  TELEGRAM_OWNER_CHAT_ID chưa được set — cron sẽ không gửi được"
   );
+
+  // Finding 7: trước đây loadCategories() tự bắt lỗi và chỉ log — bot vẫn in "Running"
+  // với CATEGORIES rỗng trong khi mọi thao tác ghi (đăng bài, insight...) sẽ 401 ngay sau
+  // đó. Phải la lớn ngay lúc boot thay vì để operator tự phát hiện qua lỗi rải rác.
+  if (!categoriesLoaded) {
+    console.error(
+      "🔴🔴🔴 KHÔNG KẾT NỐI ĐƯỢC WORDPRESS lúc khởi động — CATEGORIES rỗng, MỌI thao tác đăng bài/insight sẽ lỗi. Kiểm tra WP_URL/WP_USER/WP_APP_PASSWORD. 🔴🔴🔴"
+    );
+    if (OWNER_CHAT_ID) {
+      try {
+        await bot.telegram.sendMessage(
+          OWNER_CHAT_ID,
+          "🔴 *CẢNH BÁO:* Bot khởi động nhưng KHÔNG kết nối được WordPress — danh mục rỗng, mọi thao tác đăng bài/insight sẽ lỗi cho đến khi khắc phục. Kiểm tra WP_URL/WP_USER/WP_APP_PASSWORD rồi chạy /reload.",
+          { parse_mode: "Markdown" }
+        );
+      } catch (e) {
+        console.error("❌ Không gửi được cảnh báo Telegram:", e.message);
+      }
+    }
+  }
 });
 
 process.once("SIGINT", () => bot.stop("SIGINT"));

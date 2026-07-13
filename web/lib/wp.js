@@ -16,6 +16,24 @@ const api = axios.create({
   timeout: 30000,
 });
 
+// axios chỉ ném "Request failed with status code 400" — lý do thật (VD "insights is
+// not of type array", "Sorry, you are not allowed to create posts as this user") nằm
+// trong body lỗi của WP (e.response.data.message/code) và bị bỏ phí. Ghi đè error.message
+// ngay tại đây để MỌI catch (e) { ... e.message } trong bot-press.js tự động có thông
+// báo rõ ràng, không cần sửa từng chỗ gọi.
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const data = error.response?.data;
+    if (data?.message) {
+      const status = error.response.status;
+      const code = data.code ? ` [${data.code}]` : "";
+      error.message = `${data.message}${code} (HTTP ${status})`;
+    }
+    return Promise.reject(error);
+  }
+);
+
 // WP trả title/name dưới dạng HTML entity — giải mã để hiển thị trên Telegram.
 function decodeEntities(str = "") {
   return str
