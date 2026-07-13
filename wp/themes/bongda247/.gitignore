@@ -1,0 +1,8 @@
+# dependencies (dist/ and assets/vendor/ ARE committed — no Node needed on deploy)
+node_modules/
+
+# logs
+npm-debug.log*
+
+# macOS
+.DS_Store

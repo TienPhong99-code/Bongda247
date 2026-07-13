@@ -1,0 +1,16 @@
+{
+  "name": "bongda247-theme",
+  "private": true,
+  "scripts": {
+    "vendor": "mkdir -p assets/vendor && cp node_modules/swiper/swiper-bundle.min.js node_modules/swiper/swiper-bundle.min.css assets/vendor/",
+    "build:css": "tailwindcss -i src/main.css -o dist/main.css --minify",
+    "build:js": "mkdir -p dist && cp src/main.js dist/main.js",
+    "build": "npm run vendor && npm run build:css && npm run build:js",
+    "watch": "tailwindcss -i src/main.css -o dist/main.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.1",
+    "tailwindcss": "^4.2.1",
+    "swiper": "^12.1.2"
+  }
+}
