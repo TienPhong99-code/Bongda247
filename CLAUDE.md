@@ -14,106 +14,102 @@ Không cần người dùng nhắc — tự động làm sau khi hoàn thành ta
 
 Website tin tức và phân tích bóng đá bằng AI, viết bằng **tiếng Việt**, tập trung vào các giải đấu lớn (Ngoại hạng Anh, Champions League, La Liga, Bundesliga, Serie A, Ligue 1).
 
-Dự án gồm **2 ứng dụng chính**:
-- `cms/` — CMS backend (Sanity Studio)
-- `web/` — Frontend website (Astro + React)
+Dự án gồm **2 phần chính**:
+- `wp/` — WordPress theme + mu-plugin (frontend website)
+- `web/` — Bot Node.js (`bot-press.js`) tự động tạo + đăng bài lên WordPress
 
 ---
 
 ## Tech Stack
 
-### Frontend (`web/`)
+### Bot (`web/`)
 | Công nghệ | Version | Mục đích |
 |-----------|---------|----------|
-| Astro | 5.17.1 | Framework chính (SSR hybrid) |
-| React | 19.2.4 | Interactive components |
-| Tailwind CSS | 4.2.1 | Styling |
-| Swiper | 12.1.2 | Carousel / slider |
-| @sanity/client | 7.16.0 | Kết nối CMS |
-| @tanstack/react-query | 5.90.21 | Data fetching |
-| @google/generative-ai | 0.2.1 | AI (Google Gemini) |
-| Telegraf | 4.16.3 | Telegram bot |
-| Axios | 1.13.6 | HTTP client |
+| Node.js | 20 | Runtime |
+| Telegraf | 4.16.3 | Telegram bot framework |
+| @google/generative-ai | 0.2.1 | AI (Google Gemini 2.5 Flash) |
+| Axios | 1.13.6 | HTTP client (gọi WP REST + external APIs) |
 | rss-parser | latest | Parse RSS feeds |
+| node-cron | latest | Cron jobs (auto preview, RSS, cleanup) |
+| puppeteer-core | latest | Tạo ảnh preview trận đấu |
+| dotenv | latest | Env vars |
 
-### Backend/CMS (`cms/`)
+### WordPress (`wp/`)
 | Công nghệ | Version | Mục đích |
 |-----------|---------|----------|
-| Sanity Studio | 5.13.0 | Headless CMS |
-| TypeScript | 5.8 | Type safety |
-| React | 19.1 | Studio UI |
+| WordPress | 7.0.1 | CMS + REST API |
+| PHP | 8.2 | Server-side rendering |
+| Tailwind CSS | v4 | Styling (build trong theme) |
+| Swiper | 12 (vendored) | Carousel / slider |
 
 ---
 
 ## Cấu trúc thư mục
 
-### Frontend (`web/src/`)
+### Bot (`web/`)
 ```
-src/
-├── assets/images/          # Icon assets (flame.png cho badge "hot")
-├── components/
-│   ├── layout/
-│   │   └── Header.astro    # Navigation header
-│   ├── widgets/
-│   │   ├── LeagueTabs.jsx  # React — lọc theo giải đấu
-│   │   └── LiveScoresTicker.jsx  # React — tỷ số trực tiếp
-│   ├── HotNewsSlider.astro     # Carousel tin hot (5 bài mới nhất)
-│   ├── MatchInsights.astro     # Carousel nhận định trận đấu
-│   ├── NewsSection.astro       # Template section tin tức
-│   ├── SidebarSlider.astro     # Sidebar carousel
-│   ├── PortableText.astro      # Render Sanity rich text
-│   ├── SEO.astro               # SEO meta tags
-│   └── ThemeToggle.astro       # Dark/Light mode toggle
-├── content/
-│   ├── config.ts           # Astro content collection config
-│   └── consts.ts           # Site title, description, brand color
-├── layouts/
-│   ├── MainLayout.astro    # HTML layout chính với meta tags
-│   └── Layout.astro
+web/
+├── bot-press.js            # Telegram bot + AI automation (entry point)
+├── matchPreviewImage.js    # Tạo ảnh preview trận đấu 1200×630px
 ├── lib/
-│   ├── sanity.ts           # Sanity client + GROQ queries + image URL builder
-│   └── football-data.ts    # Football-Data.org API service
-├── pages/
-│   ├── index.astro         # Homepage
-│   ├── [category]/[slug].astro  # Dynamic article pages
-│   └── api/
-│       └── live-matches.ts # API endpoint lấy trận đấu trực tiếp
-├── styles/
-│   └── global.css
-├── types/
-│   └── index.ts            # TypeScript interfaces (Post, Match, etc.)
-└── utils/
-    ├── league-config.ts    # Cấu hình giải đấu (tên, màu sắc, mã)
-    └── team-mapper.ts      # Map tên đội sang tiếng Việt (100+ đội)
+│   └── wp.js               # Adapter ghi/đọc WordPress REST API
+├── scripts/
+│   └── seed-wp.mjs         # Seed categories lên WordPress
+├── test/                   # Test suite cho wp.js
+├── public/
+│   ├── font/SVN-Hemi/      # Font SVN-HemiHead.woff2 (dùng cho preview image)
+│   └── logo/               # logo-svg.svg (dùng cho preview image)
+└── package.json
+```
+
+### WordPress (`wp/`)
+```
+wp/
+├── themes/bongda247/
+│   ├── style.css           # Theme header
+│   ├── functions.php       # Enqueue scripts, theme setup
+│   ├── front-page.php      # Trang chủ
+│   ├── single.php          # Bài viết đơn
+│   ├── archive.php         # Archive category/giải đấu
+│   ├── 404.php             # Trang 404
+│   ├── header.php          # Header + nav
+│   ├── footer.php          # Footer
+│   ├── inc/
+│   │   └── query.php       # WP_Query helpers
+│   ├── template-parts/
+│   │   ├── hot-news-slider.php    # Carousel tin hot
+│   │   ├── match-insights.php     # Carousel nhận định trận đấu
+│   │   ├── sidebar-slider.php     # Sidebar carousel
+│   │   └── theme-toggle.php       # Dark/Light mode toggle
+│   ├── src/
+│   │   ├── main.css        # Tailwind source
+│   │   └── main.js         # JS source
+│   └── dist/               # Build output (main.css, main.js)
+├── mu-plugins/
+│   └── bongda247-core.php  # Custom Post Type: match_insight + meta fields
+└── bin/
+    └── wp                  # WP-CLI wrapper
 ```
 
 ### File đặc biệt
-- `web/bot-press.js` — Telegram bot + AI tự động tạo bài đăng lên Sanity
-
-### CMS (`cms/`)
-```
-cms/
-├── schemaTypes/
-│   ├── index.ts            # Export tất cả schemas
-│   ├── post.ts             # Schema bài viết (title, slug, category, content, image, tags)
-│   ├── category.ts         # Schema danh mục/giải đấu
-│   └── matchInsight.ts     # Schema nhận định trận đấu
-├── sanity.config.ts        # Cấu hình Sanity project
-└── sanity.cli.ts           # Sanity CLI config
-```
+- `web/bot-press.js` — Telegram bot + AI tự động tạo bài đăng lên WordPress
+- `web/matchPreviewImage.js` — Tạo ảnh preview trận đấu 1200×630px (JPEG) bằng Puppeteer + HTML template
 
 ---
 
 ## Routes & API
 
-### Frontend Routes
-- `/` — Homepage (hot news slider, match insights, sidebar)
-- `/[category]/[slug]` — Bài viết động (VD: `/ngoai-hang-anh/ten-bai-viet`)
-- `/tin-tuc/[...slug]` → redirect → `/ngoai-hang-anh/[...slug]`
+### WordPress Routes
+- `/` — Trang chủ (hot news slider, match insights, sidebar)
+- `/{category}/{slug}/` — Bài viết đơn (VD: `/ngoai-hang-anh/ten-bai-viet/`)
+- `/{category}/` — Archive danh mục / giải đấu
 
-### API Endpoints
-- `GET /api/live-matches?league=PL` — Lấy trận đấu theo mã giải
-  - Mã giải hỗ trợ: `PL` (Premier League), `CL` (Champions League), `BL1` (Bundesliga), `SA` (Serie A), `PD` (La Liga), `FL1` (Ligue 1)
+### WordPress REST API (bot ghi qua `lib/wp.js`)
+- `POST /wp-json/wp/v2/posts` — Tạo bài viết
+- `POST /wp-json/wp/v2/match_insight` — Tạo nhận định trận
+- `POST /wp-json/wp/v2/media` — Upload ảnh
+- `GET /wp-json/wp/v2/categories` — Lấy danh mục
+- `DELETE /wp-json/wp/v2/{type}/{id}?force=true` — Xóa
 
 ---
 
@@ -121,33 +117,29 @@ cms/
 
 | Service | Mục đích |
 |---------|----------|
-| Sanity.io | CMS — Lưu bài viết, danh mục, nhận định trận |
+| WordPress REST API | CMS — Lưu bài viết, danh mục, nhận định trận |
 | Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint |
 | Google Gemini 2.5 Flash | AI tạo phân tích, nhận định, viết lại bài RSS |
 | Telegram Bot | Phân phối nội dung tự động + kiểm duyệt |
 | RSS Feeds | Sky Sports, BBC Sport, Bóng Đá Plus — nguồn tin tức tự động |
+| TheSportsDB (free key `3`) | Logo đội, màu sắc, cutout cầu thủ, fanart sân vận động — dùng cho preview image |
 | Google AdSense | Quảng cáo |
 
-**Sanity config**: Project ID `wwpnye2x`, Dataset `production`
+**WordPress config**: `WP_URL` (VD: `http://bongda247.local`), user `bot` role editor + Application Password
 
 ---
 
 ## Environment Variables
 
-### Frontend (`.env`)
+### Bot (`web/.env`)
 ```
-PUBLIC_SANITY_PROJECT_ID=wwpnye2x
-PUBLIC_SANITY_DATASET=production
-PUBLIC_FOOTBALL_DATA_KEY=<api_key>  # dùng cho live-scores frontend
-```
-
-### Bot (`bot-press.js`)
-```
-SANITY_PROJECT_ID=
-SANITY_DATASET=
-SANITY_API_TOKEN=        # Token có quyền write
-GEMINI_API_KEY=          # Google Gemini API key
-TELEGRAM_BOT_TOKEN=      # Telegram bot token
+WP_URL=http://bongda247.local       # URL WordPress (không có dấu / cuối)
+WP_USER=bot                         # WordPress username
+WP_APP_PASSWORD=xxxx xxxx xxxx      # Application Password tạo trong WP
+GEMINI_API_KEY=                     # Google Gemini API key
+TELEGRAM_BOT_TOKEN=                 # Telegram bot token
+TELEGRAM_OWNER_CHAT_ID=2050679271
+PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 ```
 
 ---
@@ -173,54 +165,49 @@ TELEGRAM_BOT_TOKEN=      # Telegram bot token
 
 ## Chạy dự án
 
-### Frontend
+### Bot
 ```bash
 cd web
-npm run dev      # localhost:4321
-npm run build    # Build production → ./dist/
-npm run preview  # Preview bản build
+npm start        # Chạy bot (node bot-press.js)
+npm test         # Chạy test suite wp.js
+npm run seed     # Seed categories lên WordPress
 ```
 
-### CMS
+### WordPress Theme (build CSS/JS)
 ```bash
-cd cms
-yarn dev         # Start Sanity Studio
-yarn build       # Build Studio
-yarn deploy      # Deploy Studio lên Sanity cloud
+cd wp/themes/bongda247
+npm run build    # Build Tailwind CSS + JS → dist/
 ```
 
-### Telegram Bot
+### WP-CLI
 ```bash
-cd web
-node bot-press.js
+wp/bin/wp <command>   # WP-CLI wrapper local
 ```
 
 ---
 
-## Schemas Sanity
+## Data model WordPress
 
-### Post
-- `title`, `slug`, `category` (ref), `excerpt`
-- `mainImage` (với hotspot), `content` (block content + inline images)
-- `publishedAt`, `hashtags`
+### Post (WP built-in)
+- `title`, `slug`, `categories` (term IDs), `excerpt`
+- `featured_media` (attachment ID), `content` (HTML)
+- `status: "publish"`, meta: `source_url`, `source_credit`
 
-### Category
-- `title` (tên giải: "Ngoại hạng Anh", "Champions League"...)
+### Category (WP built-in term)
+- `name` (tên giải: "Ngoại hạng Anh", "Champions League"...)
 - `slug`, `description`
 
-### MatchInsight
-- `homeTeam`, `awayTeam`, `matchTime` (format: "HH:mm - DD/MM")
-- `isHot` (boolean — trận nổi bật)
-- `insights` (mảng string — thống kê/phân tích)
-- `prediction` (dự đoán kết quả)
-- `publishedAt`
+### match_insight (Custom Post Type — `mu-plugins/bongda247-core.php`)
+- `home_team`, `away_team`, `match_time` (string "HH:mm - DD/MM")
+- `match_date` (ISO UTC datetime) — dùng để auto-delete sau trận
+- `hot` (int 0/1), `insights` (array string), `prediction` (string)
 
 ---
 
 ## Luồng hoạt động AI (`bot-press.js`)
 
 ### Khởi động
-1. Tải toàn bộ danh mục từ Sanity qua GROQ → lưu vào `CATEGORIES` map (slug → `{id, title}`)
+1. Tải toàn bộ danh mục từ WordPress qua REST API → lưu vào `CATEGORIES` map (slug → `{id, title}`)
 2. Không hardcode ID — dùng `/reload` để cập nhật danh mục mới bất kỳ lúc nào
 
 ### Luồng 1 — INSIGHT thủ công
@@ -228,14 +215,14 @@ node bot-press.js
 
 1. Gemini trích xuất JSON: `homeTeam`, `awayTeam`, `matchTime`, `hot`, `insights[]`, `prediction`
 2. Bot hiển thị preview với nút: **Đổi HOT** / **Đăng lên Slide** / **Hủy**
-3. Xác nhận → tạo `matchInsight` trong Sanity (lưu cả `matchDate = null`)
+3. Xác nhận → tạo `match_insight` trên WordPress (lưu cả `matchDate = null`)
 
 ### Luồng 2 — BÀI VIẾT thủ công
 **Trigger:** text hoặc ảnh+caption không chứa INSIGHT
 
-1. AI tự nhận diện giải đấu → field `league` khớp slug Sanity
+1. AI tự nhận diện giải đấu → field `league` khớp slug WordPress category
 2. Gemini viết JSON: `title`, `excerpt`, `league`, `sections[]`
-3. Xác nhận → upload ảnh → tạo Portable Text → tạo `post`
+3. Xác nhận → upload ảnh lên WP Media Library → tạo `post`
 
 ### Luồng 3 — ALBUM ẢNH
 **Trigger:** gửi nhiều ảnh cùng lúc (media group)
@@ -252,7 +239,7 @@ node bot-press.js
 4. Gemini tạo nhận định dựa trên BXH (hạng, điểm, W/D/L, form)
 5. Gửi từng trận về Telegram (chat ID owner) với nút:
    - `🔄 Đổi HOT` — toggle, chưa đăng
-   - `✅ Đăng lên Slide` → tạo `matchInsight` (lưu `matchDate` = giờ UTC thực tế)
+   - `✅ Đăng lên Slide` → tạo `match_insight` trên WordPress (lưu `matchDate` = giờ UTC thực tế)
    - `📝 Tạo bài nhận định` → kích hoạt Luồng 6
    - `⏭ Bỏ qua`
 
@@ -271,7 +258,7 @@ node bot-press.js
    - Section 5: Lực lượng & Đội hình dự kiến (Gemini knowledge)
    - Section 6: Nhận định & Dự đoán tỉ số
 3. Gửi preview Telegram: title, excerpt, dự đoán với nút `✅ Đăng bài nhận định` / `⏭ Bỏ qua`
-4. Duyệt → fetch ảnh TheSportsDB (cầu thủ hoặc đội) → upload Sanity → tạo `post`
+4. Duyệt → `generateMatchPreviewImage()` tạo ảnh JPEG 1200×630px → upload WordPress Media Library làm featured image
 
 **Lưu ý:** H2H, lực lượng, đội hình dự kiến do Gemini tự điền từ kiến thức training — chính xác với các đội lớn PL, có thể không cập nhật diễn biến mới nhất
 
@@ -290,7 +277,7 @@ node bot-press.js
 4. `extractOgImage()` — scrape og:image nếu RSS không có ảnh
 5. `generateNewsPost()` — Gemini viết lại hoàn toàn tiếng Việt, chuẩn SEO (KHÔNG dịch thẳng)
 6. Gửi Telegram preview với ảnh: **✅ Đăng bài** / **⏭ Bỏ qua**
-7. Duyệt → upload ảnh lên Sanity → tạo `post` với `sourceUrl` + `sourceCredit`
+7. Duyệt → upload ảnh lên WP Media Library → tạo `post` với `source_url` + `source_credit`
 8. `processedUrls` Set reset lúc 0h mỗi ngày
 
 **RSS Sources:**
@@ -300,8 +287,8 @@ node bot-press.js
 - Bóng Đá Plus: `https://bongdaplus.vn/rss/tin-tuc.rss`
 
 ### Auto Cleanup
-- **07:55 sáng** — xóa tự động tất cả `matchInsight` có `matchDate < (now - 3h)`
-- Insight thủ công (không có `matchDate`) → xóa tay qua `/list`
+- **07:55 sáng** — xóa tự động tất cả `match_insight` có `match_date < (now - 3h)` qua WP REST API
+- Insight thủ công (không có `match_date`) → xóa tay qua `/list`
 - Sau khi xóa → gửi thông báo về Telegram
 
 ### Lệnh quản lý
@@ -312,7 +299,7 @@ node bot-press.js
 | `/fetchnews` | Fetch tin tức mới từ RSS (kích hoạt thủ công) |
 | `/list` | Xem & xóa 10 insight đang hiển thị |
 | `/posts` | Xem & xóa 8 bài viết gần nhất |
-| `/reload` | Tải lại danh mục từ Sanity |
+| `/reload` | Tải lại danh mục từ WordPress |
 
 ### Ví dụ tin nhắn gửi lên bot
 
@@ -338,16 +325,51 @@ Barca 5 thắng liên tiếp, Real thiếu Vinicius Jr treo giò.
 
 ---
 
-## Schemas Sanity (cập nhật)
+## Match Preview Image (`matchPreviewImage.js`)
 
-### MatchInsight
-- `homeTeam`, `awayTeam`, `matchTime` (string "HH:mm - DD/MM")
-- `matchDate` (datetime UTC) — dùng để auto-delete sau trận
-- `hot` (boolean), `insights[]`, `prediction`, `publishedAt`
+Module tạo ảnh preview trận đấu tự động, chỉ dùng cho **Luồng 6** (bài nhận định).
+
+### Luồng xử lý
+1. **Bước 1** — fetch song song: `fetchTeamAssets` x2 + `fetchLeagueLogo`
+2. **Bước 2** — fetch song song: tiền đạo đội nhà/khách + `fetchVenueData`
+   - Nếu có `homePlayer`/`awayPlayer` → dùng tên → `fetchPlayerCutout`
+   - Không có → tự tìm tiền đạo theo `teamId` → `fetchTeamForwardCutout`
+3. **Bước 3** — convert tất cả URL → base64 song song (6 ảnh)
+4. **`buildHtml()`** — tạo HTML nhúng font + logo + ảnh base64
+5. **Puppeteer** — screenshot JPEG quality 88 → ~150KB
+
+### TheSportsDB endpoints dùng
+| Hàm | Endpoint | Trả về |
+|-----|----------|--------|
+| `fetchTeamAssets` | `searchteams.php?t=` | logo, `strColour1`, `teamId`, `venueId` |
+| `fetchTeamForwardCutout` | `lookup_all_players.php?id=` | lọc Forward/Striker → `strCutout` |
+| `fetchVenueData` | `lookupvenue.php?id=` | tên sân, `strFanart1` |
+| `fetchLeagueLogo` | `lookupleague.php?id=` | `strBadge` giải đấu |
+
+### LEAGUE_IDS (TheSportsDB)
+```js
+PL: 4328, CL: 4480, PD: 4335, BL1: 4331, SA: 4332, FL1: 4334
+```
+
+### Tối ưu
+- `FONT_B64` + `LOGO_B64` đọc file 1 lần lúc module load
+- `getChromiumPath()` cache kết quả sau lần đầu
+- Queue (`browserQueue`) đảm bảo chỉ 1 Puppeteer chạy tại 1 thời điểm
+- Output: JPEG quality 88 (~150KB, giảm từ PNG ~1MB)
+
+### Assets tĩnh cần có
+- `web/public/font/SVN-Hemi/SVN-HemiHead.woff2`
+- `web/public/logo/logo-svg.svg`
 
 ---
 
 ## Deployment
+
+### WordPress — Local / Hosting
+- **Local:** Chạy với Local by Flywheel hoặc MAMP, URL `http://bongda247.local`
+- **Production:** Upload `wp/themes/bongda247/` (kèm `dist/`) + `wp/mu-plugins/`
+- Cài RankMath, đặt permalink `/%category%/%postname%/`
+- Tạo user `bot` role editor + Application Password
 
 ### Bot (`bot-press.js`) — Railway
 - **URL:** railway.app, project Bongda247
@@ -361,8 +383,8 @@ Barca 5 thắng liên tiếp, Real thiếu Vinicius Jr treo giò.
 TELEGRAM_BOT_TOKEN
 TELEGRAM_OWNER_CHAT_ID=2050679271
 GEMINI_API_KEY
-SANITY_PROJECT_ID=wwpnye2x
-SANITY_DATASET=production
-SANITY_API_TOKEN
+WP_URL=https://bongda247.com       # URL WordPress production
+WP_USER=bot
+WP_APP_PASSWORD=                   # Application Password WP
 PUBLIC_FOOTBALL_DATA_KEY
 ```
