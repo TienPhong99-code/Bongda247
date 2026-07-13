@@ -684,7 +684,7 @@ bot.command("list", async (ctx) => {
     for (const item of insights) {
       const badge = item.hot ? "🔥" : "⚽";
       await ctx.reply(
-        `${badge} *${item.homeTeam}* vs *${item.awayTeam}*  ⏰ ${item.matchTime}`,
+        `${badge} *${escapeMarkdown(item.homeTeam)}* vs *${escapeMarkdown(item.awayTeam)}*  ⏰ ${escapeMarkdown(item.matchTime)}`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -712,7 +712,7 @@ bot.command("posts", async (ctx) => {
       const date = new Date(post.date).toLocaleDateString("vi-VN");
       const catName = catNameById[post.categoryIds[0]] ?? "—";
       await ctx.reply(
-        `📰 *${post.title}*\n🏆 ${catName}  📅 ${date}`,
+        `📰 *${escapeMarkdown(post.title)}*\n🏆 ${catName}  📅 ${date}`,
         {
           parse_mode: "Markdown",
           reply_markup: {
