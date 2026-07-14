@@ -10,6 +10,25 @@
     localStorage.setItem("theme", isDark ? "dark" : "light");
   });
 
+  // --- Search toggle (icon xổ ô nhập) ---
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-search-toggle]")) return;
+    var box = document.getElementById("bd-search");
+    if (!box) return;
+    box.classList.toggle("hidden");
+    if (!box.classList.contains("hidden")) {
+      var input = box.querySelector('input[type="search"]');
+      if (input) input.focus();
+    }
+  });
+
+  // --- Mobile menu toggle (hamburger) ---
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-menu-toggle]")) return;
+    var menu = document.getElementById("bd-mobile-menu");
+    if (menu) menu.classList.toggle("hidden");
+  });
+
   // --- Swiper ---
   document.addEventListener("DOMContentLoaded", function () {
     if (typeof Swiper === "undefined") return;
