@@ -12,6 +12,7 @@ $bd_slug = get_query_var('bd_fd_widget_slug') ?: 'ngoai-hang-anh';
     </select>
   </div>
   <div data-fd-body>
-    <?php get_template_part('template-parts/fd-widget-body'); ?>
+    <?php // Chuyển tiếp slug đã resolve (kèm default) xuống body — widget tự chứa, không phụ thuộc caller.
+    set_query_var('bd_fd_widget_slug', $bd_slug); get_template_part('template-parts/fd-widget-body'); ?>
   </div>
 </div>
