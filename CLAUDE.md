@@ -68,7 +68,7 @@ wp/
 ├── themes/bongda247/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
-│   ├── front-page.php      # Trang chủ (hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
+│   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
 │   ├── single.php          # Bài viết đơn
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
@@ -85,6 +85,7 @@ wp/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
 │   │   ├── sidebar-slider.php     # Sidebar carousel
+│   │   ├── featured-matches.php   # Dải trận đấu nổi bật đầu trang (gộp lịch+KQ 5 giải, ẩn khi rỗng)
 │   │   ├── category-column.php    # 1 cột lưới "TIN THEO GIẢI ĐẤU"
 │   │   ├── transfer-list.php      # Cột Chuyển nhượng (lead + list) trang chủ
 │   │   ├── fd-widget.php          # Khung widget số liệu (dropdown giải + body, AJAX)
@@ -111,7 +112,7 @@ wp/
 ## Routes & API
 
 ### WordPress Routes
-- `/` — Trang chủ (hot news slider · match insights · lưới tin theo giải · section Chuyển nhượng + widget số liệu)
+- `/` — Trang chủ (dải trận đấu nổi bật · hot news slider · match insights · lưới tin theo giải · section Chuyển nhượng + widget số liệu)
 - `/{category}/{slug}/` — Bài viết đơn (VD: `/ngoai-hang-anh/ten-bai-viet/`)
 - `/{category}/` — Archive danh mục / giải đấu
 - `/?s=từ+khóa` — Kết quả tìm kiếm
@@ -135,7 +136,7 @@ wp/
 | Service | Mục đích |
 |---------|----------|
 | WordPress REST API | CMS — Lưu bài viết, danh mục, nhận định trận |
-| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint. Dùng bởi **bot** (env `PUBLIC_FOOTBALL_DATA_KEY`) VÀ **theme** (`inc/football-data.php`, đọc hằng wp-config `FOOTBALL_DATA_KEY`, cache stale-while-revalidate) cho widget số liệu trang chủ + trang BXH/lịch |
+| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint. Dùng bởi **bot** (env `PUBLIC_FOOTBALL_DATA_KEY`) VÀ **theme** (`inc/football-data.php`, đọc hằng wp-config `FOOTBALL_DATA_KEY`, cache stale-while-revalidate) cho widget số liệu + **dải trận đấu nổi bật** (`bd_fd_featured_matches()` gộp fixtures 5 giải, tái dùng cache) trang chủ + trang BXH/lịch |
 | Google Gemini 2.5 Flash | AI tạo phân tích, nhận định, viết lại bài RSS |
 | Telegram Bot | Phân phối nội dung tự động + kiểm duyệt |
 | RSS Feeds | Sky Sports, BBC Sport, Bóng Đá Plus — nguồn tin tức tự động |
