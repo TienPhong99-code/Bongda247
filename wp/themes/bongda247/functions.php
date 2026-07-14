@@ -35,3 +35,14 @@ add_action('wp_enqueue_scripts', function () {
         null
     );
 });
+
+// AJAX: render lại widget số liệu theo giải (đổi giải không reload trang).
+add_action('wp_ajax_bd_fd_widget', 'bd_fd_widget_ajax');
+add_action('wp_ajax_nopriv_bd_fd_widget', 'bd_fd_widget_ajax');
+function bd_fd_widget_ajax() {
+    $req  = isset($_GET['league']) ? sanitize_key(wp_unslash($_GET['league'])) : '';
+    $slug = array_key_exists($req, BD_FD_LEAGUES) ? $req : 'ngoai-hang-anh';
+    set_query_var('bd_fd_widget_slug', $slug);
+    get_template_part('template-parts/fd-widget-body');
+    wp_die();
+}
