@@ -37,6 +37,39 @@
     }
   });
 
+  // --- Widget số liệu: đổi giải qua AJAX ---
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("[data-fd-league]");
+    if (!sel) return;
+    var widget = sel.closest("[data-fd-ajax]");
+    var body = widget && widget.querySelector("[data-fd-body]");
+    if (!widget || !body) return;
+    var url = widget.getAttribute("data-fd-ajax") + "?action=bd_fd_widget&league=" + encodeURIComponent(sel.value);
+    fetch(url)
+      .then(function (r) { return r.text(); })
+      .then(function (html) { body.innerHTML = html; })
+      .catch(function () {});
+  });
+
+  // --- Widget số liệu: đổi tab BXH/Lịch/Kết quả (client) ---
+  document.addEventListener("click", function (e) {
+    var tab = e.target.closest("[data-fd-tab]");
+    if (!tab) return;
+    var body = tab.closest("[data-fd-body]");
+    if (!body) return;
+    var name = tab.getAttribute("data-fd-tab");
+    body.querySelectorAll("[data-fd-tab]").forEach(function (b) {
+      var active = b === tab;
+      b.classList.toggle("bg-brand", active);
+      b.classList.toggle("text-white", active);
+      b.classList.toggle("text-secondary", !active);
+      b.setAttribute("aria-selected", String(active));
+    });
+    body.querySelectorAll("[data-fd-panel]").forEach(function (p) {
+      p.hidden = p.getAttribute("data-fd-panel") !== name;
+    });
+  });
+
   // --- Swiper ---
   document.addEventListener("DOMContentLoaded", function () {
     if (typeof Swiper === "undefined") return;

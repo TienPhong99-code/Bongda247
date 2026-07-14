@@ -36,4 +36,17 @@
   </div>
 </section>
 
+<section>
+  <div class="container">
+    <div class="row">
+      <div class="col col-8">
+        <?php set_query_var('bd_cat_slug', 'chuyen-nhuong'); get_template_part('template-parts/transfer-list'); ?>
+      </div>
+      <div class="col col-4">
+        <?php set_query_var('bd_fd_widget_slug', 'ngoai-hang-anh'); get_template_part('template-parts/fd-widget'); ?>
+      </div>
+    </div>
+  </div>
+</section>
+
 <?php get_footer(); ?>
