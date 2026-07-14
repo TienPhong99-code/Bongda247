@@ -85,12 +85,17 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
               if (!$term) continue; ?>
             <li><a href="<?php echo esc_url(get_term_link($term)); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand"><?php echo esc_html($item['name']); ?></a></li>
           <?php endforeach; ?>
-          <li class="border-t border-card mt-2 pt-2"></li>
-          <?php foreach ($bd_menu_pages as $bd_slug => $bd_label) :
-              $bd_page = get_page_by_path($bd_slug);
-              if (!$bd_page) continue; ?>
-            <li><a href="<?php echo esc_url(get_permalink($bd_page)); ?>" class="block py-2 text-sm text-secondary hover:text-brand"><?php echo esc_html($bd_label); ?></a></li>
-          <?php endforeach; ?>
+          <?php
+          $bd_any_page = false;
+          foreach ($bd_menu_pages as $bd_s => $bd_l) { if (get_page_by_path($bd_s)) { $bd_any_page = true; break; } }
+          if ($bd_any_page) : ?>
+            <li class="border-t border-card mt-2 pt-2"></li>
+            <?php foreach ($bd_menu_pages as $bd_slug => $bd_label) :
+                $bd_page = get_page_by_path($bd_slug);
+                if (!$bd_page) continue; ?>
+              <li><a href="<?php echo esc_url(get_permalink($bd_page)); ?>" class="block py-2 text-sm text-secondary hover:text-brand"><?php echo esc_html($bd_label); ?></a></li>
+            <?php endforeach; ?>
+          <?php endif; ?>
         </ul>
       </div>
     </nav>
