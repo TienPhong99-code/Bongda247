@@ -1,9 +1,19 @@
 <?php defined('ABSPATH') || exit; get_header(); ?>
 
 <div class="container">
-  <h1 class="font-hemi text-3xl uppercase border-l-4 border-brand pl-4 mb-8">
-    <?php echo esc_html(single_term_title('', false) ?: get_the_archive_title()); ?>
+  <h1 class="font-hemi text-3xl uppercase border-l-4 border-brand pl-4 mb-4">
+    <?php
+    if (is_tag()) {
+        echo 'Chủ đề: ' . esc_html(single_term_title('', false));
+    } else {
+        echo esc_html(single_term_title('', false) ?: get_the_archive_title());
+    }
+    ?>
   </h1>
+
+  <?php $bd_desc = term_description(); if ($bd_desc) : ?>
+    <div class="prose-bd text-secondary max-w-3xl mb-8"><?php echo wp_kses_post($bd_desc); ?></div>
+  <?php endif; ?>
 
   <?php if (have_posts()) : ?>
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
