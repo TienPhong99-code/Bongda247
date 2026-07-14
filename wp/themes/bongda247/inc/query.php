@@ -120,3 +120,14 @@ function bd_insight_is_upcoming($match_time, $match_date = '') {
 
     return $month === $now_month && $day >= $now_day;
 }
+
+/** N bài mới nhất của 1 category (theo slug) — dùng cho block tin theo giải trên trang chủ. */
+function bd_category_posts($slug, $n = 5) {
+    return new WP_Query([
+        'post_type'           => 'post',
+        'category_name'       => $slug,
+        'posts_per_page'      => $n,
+        'ignore_sticky_posts' => true,
+        'no_found_rows'       => true,
+    ]);
+}

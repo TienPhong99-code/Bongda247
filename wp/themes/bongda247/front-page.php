@@ -20,4 +20,13 @@
   </div>
 </section>
 
+<?php
+// Block tin theo giải/chủ đề — sửa mảng này để thêm/bớt block.
+$bd_home_categories = ['ngoai-hang-anh', 'la-liga', 'champions-league', 'chuyen-nhuong'];
+foreach ($bd_home_categories as $bd_cat_slug) :
+    set_query_var('bd_cat_slug', $bd_cat_slug);
+    get_template_part('template-parts/category-section');
+endforeach;
+?>
+
 <?php get_footer(); ?>
