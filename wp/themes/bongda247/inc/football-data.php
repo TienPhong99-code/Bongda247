@@ -2,13 +2,15 @@
 defined('ABSPATH') || exit;
 
 // 5 giải VĐQG: slug WordPress → mã competition football-data.org + tên hiển thị.
-const BD_FD_LEAGUES = [
-    'ngoai-hang-anh' => ['code' => 'PL',  'name' => 'Ngoại hạng Anh'],
-    'la-liga'        => ['code' => 'PD',  'name' => 'La Liga'],
-    'bundesliga'     => ['code' => 'BL1', 'name' => 'Bundesliga'],
-    'serie-a'        => ['code' => 'SA',  'name' => 'Serie A'],
-    'ligue-1'        => ['code' => 'FL1', 'name' => 'Ligue 1'],
-];
+if (!defined('BD_FD_LEAGUES')) {
+    define('BD_FD_LEAGUES', [
+        'ngoai-hang-anh' => ['code' => 'PL',  'name' => 'Ngoại hạng Anh'],
+        'la-liga'        => ['code' => 'PD',  'name' => 'La Liga'],
+        'bundesliga'     => ['code' => 'BL1', 'name' => 'Bundesliga'],
+        'serie-a'        => ['code' => 'SA',  'name' => 'Serie A'],
+        'ligue-1'        => ['code' => 'FL1', 'name' => 'Ligue 1'],
+    ]);
+}
 
 /** slug → mã competition, hoặc null nếu không phải 1 trong 5 giải. */
 function bd_fd_code($slug) {
