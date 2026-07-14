@@ -20,7 +20,7 @@ $bd_rest  = array_slice($bd_posts, 1); // tối đa 2 tin phụ
 
 <div>
   <a href="<?php echo esc_url(get_category_link($bd_term)); ?>"
-     class="block text-sm font-bold uppercase tracking-wide text-brand mb-4 hover:underline">
+     class="block text-lg font-bold uppercase tracking-wide text-brand mb-4 hover:underline">
     <?php echo esc_html($bd_term->name); ?>
   </a>
 
