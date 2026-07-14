@@ -68,18 +68,29 @@ wp/
 ├── themes/bongda247/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
-│   ├── front-page.php      # Trang chủ
+│   ├── front-page.php      # Trang chủ (hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
 │   ├── single.php          # Bài viết đơn
 │   ├── archive.php         # Archive category/giải đấu
+│   ├── search.php          # Trang kết quả tìm kiếm
+│   ├── page-bang-xep-hang.php # Trang BXH đầy đủ (?league=slug)
+│   ├── page-lich-thi-dau.php  # Trang lịch + kết quả đầy đủ (?league=slug)
+│   ├── page.php            # Trang tĩnh mặc định
 │   ├── 404.php             # Trang 404
-│   ├── header.php          # Header + nav
+│   ├── header.php          # Header + nav + search-toggle + mobile menu
 │   ├── footer.php          # Footer
 │   ├── inc/
-│   │   └── query.php       # WP_Query helpers
+│   │   ├── query.php       # WP_Query helpers (bd_category_posts, bd_hero, ...)
+│   │   └── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
 │   │   ├── sidebar-slider.php     # Sidebar carousel
+│   │   ├── category-column.php    # 1 cột lưới "TIN THEO GIẢI ĐẤU"
+│   │   ├── transfer-list.php      # Cột Chuyển nhượng (lead + list) trang chủ
+│   │   ├── fd-widget.php          # Khung widget số liệu (dropdown giải + body, AJAX)
+│   │   ├── fd-widget-body.php     # Phần đổi theo giải: 3 tab BXH/Lịch/KQ (AJAX render lại)
+│   │   ├── standings-table.php    # Bảng BXH đầy đủ (trang BXH)
+│   │   ├── fixtures-list.php      # Danh sách lịch/kết quả (trang lịch)
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
@@ -100,9 +111,15 @@ wp/
 ## Routes & API
 
 ### WordPress Routes
-- `/` — Trang chủ (hot news slider, match insights, sidebar)
+- `/` — Trang chủ (hot news slider · match insights · lưới tin theo giải · section Chuyển nhượng + widget số liệu)
 - `/{category}/{slug}/` — Bài viết đơn (VD: `/ngoai-hang-anh/ten-bai-viet/`)
 - `/{category}/` — Archive danh mục / giải đấu
+- `/?s=từ+khóa` — Kết quả tìm kiếm
+- `/bang-xep-hang/?league={slug}` — BXH đầy đủ 1 giải
+- `/lich-thi-dau/?league={slug}` — Lịch + kết quả đầy đủ 1 giải
+
+### admin-ajax (theme)
+- `GET /wp-admin/admin-ajax.php?action=bd_fd_widget&league={slug}` — render lại body widget số liệu (BXH/Lịch/KQ) cho 1 giải; input `league` validate qua `BD_FD_LEAGUES` (sai → default `ngoai-hang-anh`). Dùng cho dropdown đổi giải trên trang chủ (không reload).
 
 ### WordPress REST API (bot ghi qua `lib/wp.js`)
 - `POST /wp-json/wp/v2/posts` — Tạo bài viết
@@ -118,7 +135,7 @@ wp/
 | Service | Mục đích |
 |---------|----------|
 | WordPress REST API | CMS — Lưu bài viết, danh mục, nhận định trận |
-| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint |
+| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint. Dùng bởi **bot** (env `PUBLIC_FOOTBALL_DATA_KEY`) VÀ **theme** (`inc/football-data.php`, đọc hằng wp-config `FOOTBALL_DATA_KEY`, cache stale-while-revalidate) cho widget số liệu trang chủ + trang BXH/lịch |
 | Google Gemini 2.5 Flash | AI tạo phân tích, nhận định, viết lại bài RSS |
 | Telegram Bot | Phân phối nội dung tự động + kiểm duyệt |
 | RSS Feeds | Sky Sports, BBC Sport, Bóng Đá Plus — nguồn tin tức tự động |
@@ -126,6 +143,8 @@ wp/
 | Google AdSense | Quảng cáo |
 
 **WordPress config**: `WP_URL` (VD: `http://bongda247.local`), user `bot` role editor + Application Password
+
+**Theme football-data**: đặt hằng trong `wp-config.php` — `define('FOOTBALL_DATA_KEY', '...')` (dùng `./wp/bin/wp config set FOOTBALL_DATA_KEY "<key>" --type=constant`). Thiếu key → `bd_fd_standings`/`bd_fd_fixtures` trả `[]`, widget hiện "Chưa có dữ liệu". `BD_FD_LEAGUES` map 5 slug→code: `ngoai-hang-anh`→PL, `la-liga`→PD, `bundesliga`→BL1, `serie-a`→SA, `ligue-1`→FL1 (không có Champions League vì free plan không hỗ trợ bảng nhóm).
 
 ---
 
