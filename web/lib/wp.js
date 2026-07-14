@@ -235,3 +235,19 @@ export async function ensureCategory(slug, name) {
   const res = await api.post("/categories", { name, slug });
   return res.data.id;
 }
+
+/**
+ * Tạo hoặc cập nhật một WordPress Page theo slug (idempotent). Dùng cho seed trang tĩnh.
+ * Trả về { id, link }. Nội dung HTML phải hợp lệ KSES (h2/h3/p/ul/li/a/strong...) vì
+ * user bot đã bị gỡ unfiltered_html.
+ */
+export async function ensurePage(slug, title, html) {
+  const found = await api.get("/pages", { params: { slug, _fields: "id" } });
+  const payload = { title, content: html, status: "publish", slug };
+  if (found.data.length) {
+    const res = await api.put(`/pages/${found.data[0].id}`, payload);
+    return { id: res.data.id, link: res.data.link };
+  }
+  const res = await api.post("/pages", payload);
+  return { id: res.data.id, link: res.data.link };
+}
