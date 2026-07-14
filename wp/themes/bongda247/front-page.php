@@ -20,13 +20,20 @@
   </div>
 </section>
 
-<?php
-// Block tin theo giải/chủ đề — sửa mảng này để thêm/bớt block.
-$bd_home_categories = ['ngoai-hang-anh', 'la-liga', 'champions-league', 'chuyen-nhuong'];
-foreach ($bd_home_categories as $bd_cat_slug) :
-    set_query_var('bd_cat_slug', $bd_cat_slug);
-    get_template_part('template-parts/category-section');
-endforeach;
-?>
+<section>
+  <div class="container">
+    <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4 mb-8">Tin theo giải đấu</h2>
+    <?php
+    // 3 giải mỗi cột — sửa mảng để thêm/bớt cột.
+    $bd_home_categories = ['ngoai-hang-anh', 'la-liga', 'champions-league'];
+    ?>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <?php foreach ($bd_home_categories as $bd_cat_slug) :
+          set_query_var('bd_cat_slug', $bd_cat_slug);
+          get_template_part('template-parts/category-column');
+      endforeach; ?>
+    </div>
+  </div>
+</section>
 
 <?php get_footer(); ?>
