@@ -1,5 +1,7 @@
 <?php defined('ABSPATH') || exit; get_header(); ?>
 
+<?php get_template_part('template-parts/featured-matches'); ?>
+
 <section>
   <div class="container">
     <div class="row">
