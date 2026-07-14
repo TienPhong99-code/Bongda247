@@ -43,6 +43,25 @@
   <?php else : ?>
     <p class="text-secondary">Chưa có bài viết nào trong mục này.</p>
   <?php endif; ?>
+
+  <?php
+  // Dữ liệu bóng đá: chỉ hiện cho archive category là 1 trong 5 giải VĐQG.
+  if (is_category() && ($bd_obj = get_queried_object()) && ($bd_code = bd_fd_code($bd_obj->slug))) :
+      $bd_rows    = bd_fd_standings($bd_code);
+      $bd_matches = bd_fd_fixtures($bd_code);
+      if ($bd_rows) : ?>
+        <section class="mt-12">
+          <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4 mb-6">Bảng xếp hạng</h2>
+          <?php set_query_var('bd_fd_rows', $bd_rows); get_template_part('template-parts/standings-table'); ?>
+        </section>
+      <?php endif;
+      if ($bd_matches) : ?>
+        <section class="mt-12">
+          <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4 mb-6">Lịch thi đấu &amp; kết quả</h2>
+          <?php set_query_var('bd_fd_matches', $bd_matches); get_template_part('template-parts/fixtures-list'); ?>
+        </section>
+      <?php endif;
+  endif; ?>
 </div>
 
 <?php get_footer(); ?>
