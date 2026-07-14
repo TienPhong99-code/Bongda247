@@ -120,3 +120,45 @@ function bd_fd_fixtures($code) {
         return $out;
     });
 }
+
+/**
+ * Gộp trận nổi bật 5 giải: tối đa $limit trận cân bằng quanh now
+ * (vừa đá + sắp tới), sắp tăng dần theo utcDate để hiển thị.
+ * Mỗi phần tử = 1 trận của bd_fd_fixtures() + 'ts' (unix) + 'league_slug' + 'league_name'.
+ * Tái dùng cache bd_fd_fixtures() — không thêm API endpoint.
+ */
+function bd_fd_featured_matches($limit = 8) {
+    $finished = [];
+    $upcoming = [];
+    foreach (BD_FD_LEAGUES as $slug => $lg) {
+        foreach (bd_fd_fixtures($lg['code']) as $m) {
+            if (empty($m['utcDate'])) continue;
+            $ts = strtotime($m['utcDate']);
+            if ($ts === false) continue;
+            $m['ts']          = $ts;
+            $m['league_slug'] = $slug;
+            $m['league_name'] = $lg['name'];
+            if ($m['status'] === 'FINISHED') {
+                $finished[] = $m;
+            } elseif ($m['status'] === 'SCHEDULED' || $m['status'] === 'TIMED') {
+                $upcoming[] = $m;
+            }
+            // IN_PLAY / PAUSED / khác → bỏ qua (live ngoài phạm vi)
+        }
+    }
+
+    // finished: gần now nhất trước (giảm dần theo ts); upcoming: gần now nhất trước (tăng dần)
+    usort($finished, function ($a, $b) { return $b['ts'] <=> $a['ts']; });
+    usort($upcoming, function ($a, $b) { return $a['ts'] <=> $b['ts']; });
+
+    $taken_finished = array_slice($finished, 0, intdiv($limit, 2));
+    $taken_upcoming = array_slice($upcoming, 0, $limit - count($taken_finished));
+    // upcoming ít → lấp thêm finished tới $limit
+    if (count($taken_finished) + count($taken_upcoming) < $limit) {
+        $taken_finished = array_slice($finished, 0, $limit - count($taken_upcoming));
+    }
+
+    $out = array_merge($taken_finished, $taken_upcoming);
+    usort($out, function ($a, $b) { return $a['ts'] <=> $b['ts']; }); // hiển thị: quá khứ → tương lai
+    return $out;
+}
