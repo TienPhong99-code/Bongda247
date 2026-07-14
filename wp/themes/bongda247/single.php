@@ -32,7 +32,7 @@
 
       <?php if (has_post_thumbnail()) : ?>
         <div class="mb-12 rounded-2xl overflow-hidden shadow-2xl border border-card">
-          <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-auto object-cover']); ?>
+          <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-auto object-cover', 'alt' => the_title_attribute(['echo' => false])]); ?>
         </div>
       <?php endif; ?>
 

@@ -24,7 +24,7 @@
       </nav>
 
       <p class="text-sm text-secondary">
-        © <?php echo esc_html(date('Y')); ?> Bongda247. Tin tức và nhận định bóng đá.
+        © <?php echo esc_html(wp_date('Y')); ?> Bongda247. Tin tức và nhận định bóng đá.
       </p>
     </div>
   </div>

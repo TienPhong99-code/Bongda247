@@ -23,6 +23,7 @@ $side = bd_sidebar_posts(10);
                     <?php if (has_post_thumbnail()) : ?>
                       <?php the_post_thumbnail('bd_thumb', [
                           'class' => 'w-full h-full object-cover group-hover:scale-110 transition-transform duration-500',
+                          'alt'   => the_title_attribute(['echo' => false]),
                       ]); ?>
                     <?php else : ?>
                       <div class="w-full h-full flex items-center justify-center bg-slate-900">

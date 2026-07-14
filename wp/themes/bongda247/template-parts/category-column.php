@@ -18,7 +18,7 @@ $bd_lead  = $bd_posts[0];
 $bd_rest  = array_slice($bd_posts, 1); // tối đa 2 tin phụ
 ?>
 
-<div>
+<div class="min-w-0">
   <a href="<?php echo esc_url(get_category_link($bd_term)); ?>"
      class="block text-lg font-bold uppercase tracking-wide text-brand mb-4 hover:underline">
     <?php echo esc_html($bd_term->name); ?>
@@ -27,7 +27,7 @@ $bd_rest  = array_slice($bd_posts, 1); // tối đa 2 tin phụ
   <a href="<?php echo esc_url(get_permalink($bd_lead)); ?>" class="block group mb-4">
     <?php if (has_post_thumbnail($bd_lead)) : ?>
       <div class="rounded-lg overflow-hidden border border-card mb-3 aspect-video">
-        <?php echo get_the_post_thumbnail($bd_lead, 'bd_hero', ['class' => 'w-full h-full object-cover transition-transform group-hover:scale-105']); ?>
+        <?php echo get_the_post_thumbnail($bd_lead, 'bd_hero', ['class' => 'w-full h-full object-cover transition-transform group-hover:scale-105', 'alt' => esc_attr(get_the_title($bd_lead))]); ?>
       </div>
     <?php endif; ?>
     <h3 class="font-oswald text-lg font-bold leading-snug group-hover:text-brand transition-colors line-clamp-2"><?php echo esc_html(get_the_title($bd_lead)); ?></h3>

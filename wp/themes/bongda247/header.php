@@ -54,14 +54,14 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
         </ul>
 
         <div class="flex items-center space-x-3">
-          <button data-search-toggle aria-label="Tìm kiếm"
+          <button data-search-toggle type="button" aria-label="Tìm kiếm" aria-expanded="false"
                   class="p-2 rounded-full border border-card bg-control cursor-pointer transition-colors hover:text-brand">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
           </button>
 
           <?php get_template_part('template-parts/theme-toggle'); ?>
 
-          <button data-menu-toggle aria-label="Menu"
+          <button data-menu-toggle type="button" aria-label="Menu" aria-expanded="false"
                   class="lg:hidden p-2 rounded-full border border-card bg-control cursor-pointer transition-colors hover:text-brand">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
           </button>

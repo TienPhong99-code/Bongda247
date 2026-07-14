@@ -39,6 +39,8 @@ function bd_fd_api($path, $query = []) {
         'timeout' => 10,
     ]);
     if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) {
+        // Ghi log lỗi để debug trên prod (không ảnh hưởng người dùng)
+        error_log('bd_fd_api lỗi: ' . (is_wp_error($res) ? $res->get_error_message() : ('HTTP ' . wp_remote_retrieve_response_code($res))) . ' — ' . $url);
         return null;
     }
     $data = json_decode(wp_remote_retrieve_body($res), true);

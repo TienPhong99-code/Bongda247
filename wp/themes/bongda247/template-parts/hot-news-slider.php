@@ -16,7 +16,7 @@ $hot = bd_hot_posts(5);
 
             <?php if (has_post_thumbnail()) : ?>
               <span class="absolute inset-0">
-                <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-full object-cover']); ?>
+                <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-full object-cover', 'alt' => the_title_attribute(['echo' => false])]); ?>
               </span>
             <?php else : ?>
               <div class="w-full absolute h-full bg-slate-900 flex items-center justify-center">

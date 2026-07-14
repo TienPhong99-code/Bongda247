@@ -11,7 +11,7 @@
         <article class="rounded-lg bg-card border border-card overflow-hidden">
           <a href="<?php the_permalink(); ?>" class="block">
             <?php if (has_post_thumbnail()) : ?>
-              <?php the_post_thumbnail('bd_hero', ['class' => 'w-full aspect-video object-cover']); ?>
+              <?php the_post_thumbnail('bd_hero', ['class' => 'w-full aspect-video object-cover', 'alt' => the_title_attribute(['echo' => false])]); ?>
             <?php endif; ?>
             <div class="p-4">
               <h2 class="text-lg leading-snug hover:text-brand transition-colors"><?php the_title(); ?></h2>

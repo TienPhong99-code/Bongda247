@@ -12,10 +12,13 @@
 
   // --- Search toggle (icon xổ ô nhập) ---
   document.addEventListener("click", function (e) {
-    if (!e.target.closest("[data-search-toggle]")) return;
+    var btn = e.target.closest("[data-search-toggle]");
+    if (!btn) return;
     var box = document.getElementById("bd-search");
     if (!box) return;
     box.classList.toggle("hidden");
+    // Cập nhật aria-expanded theo trạng thái thật của ô tìm kiếm
+    btn.setAttribute("aria-expanded", String(!box.classList.contains("hidden")));
     if (!box.classList.contains("hidden")) {
       var input = box.querySelector('input[type="search"]');
       if (input) input.focus();
@@ -24,9 +27,14 @@
 
   // --- Mobile menu toggle (hamburger) ---
   document.addEventListener("click", function (e) {
-    if (!e.target.closest("[data-menu-toggle]")) return;
+    var btn = e.target.closest("[data-menu-toggle]");
+    if (!btn) return;
     var menu = document.getElementById("bd-mobile-menu");
-    if (menu) menu.classList.toggle("hidden");
+    if (menu) {
+      menu.classList.toggle("hidden");
+      // Cập nhật aria-expanded theo trạng thái thật của mobile menu
+      btn.setAttribute("aria-expanded", String(!menu.classList.contains("hidden")));
+    }
   });
 
   // --- Swiper ---

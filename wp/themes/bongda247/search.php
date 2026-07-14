@@ -13,7 +13,7 @@
           <a href="<?php echo esc_url(get_permalink()); ?>" class="block">
             <?php if (has_post_thumbnail()) : ?>
               <div class="overflow-hidden aspect-video">
-                <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-full object-cover group-hover:scale-105 transition-transform duration-500']); ?>
+                <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-full object-cover group-hover:scale-105 transition-transform duration-500', 'alt' => the_title_attribute(['echo' => false])]); ?>
               </div>
             <?php endif; ?>
             <div class="p-4">

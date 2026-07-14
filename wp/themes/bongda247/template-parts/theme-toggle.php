@@ -1,5 +1,6 @@
 <?php defined('ABSPATH') || exit; ?>
 <button data-theme-toggle
+        type="button"
         aria-label="Đổi giao diện sáng/tối"
         class="p-2 rounded-full border border-card bg-control cursor-pointer transition-colors hover:text-brand">
   <svg class="w-5 h-5 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
