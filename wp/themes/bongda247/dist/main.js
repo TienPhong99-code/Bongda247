@@ -126,6 +126,32 @@
           }).catch(function () {});
         });
       }
+
+      // Share
+      var shareWrap = bdPts.querySelector('[data-bd-share-url]');
+      if (shareWrap) {
+        var shareUrl = shareWrap.getAttribute('data-bd-share-url');
+        var shareTitle = shareWrap.getAttribute('data-bd-share-title') || '';
+        var awardShare = function () {
+          bdSend('bd_award', { sub: 'share' }).then(function (res) {
+            if (res && res.success) setBalance(res.data.points);
+          }).catch(function () {});
+        };
+        shareWrap.querySelectorAll('[data-bd-share]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var t = btn.getAttribute('data-bd-share');
+            if (t === 'fb') {
+              window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl), '_blank', 'noopener,width=600,height=500');
+            } else if (t === 'x') {
+              window.open('https://twitter.com/intent/tweet?url=' + encodeURIComponent(shareUrl) + '&text=' + encodeURIComponent(shareTitle), '_blank', 'noopener,width=600,height=500');
+            } else if (t === 'copy') {
+              if (navigator.clipboard) { navigator.clipboard.writeText(shareUrl).catch(function () {}); }
+              btn.setAttribute('aria-label', 'Đã copy');
+            }
+            awardShare();
+          });
+        });
+      }
     }
 
     if (typeof Swiper === "undefined") return;
