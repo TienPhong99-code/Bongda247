@@ -76,3 +76,16 @@ function bd_ajax_toggle_like() {
     update_post_meta($post_id, 'bd_like_count', $count);
     wp_send_json_success(['liked' => !$now_liked, 'count' => $count, 'points' => bd_get_points($uid)]);
 }
+
+// Cộng điểm khi user đăng nhập bình luận (5đ, dedup 1 lần/bài).
+add_action('comment_post', 'bd_award_comment_points', 10, 2);
+function bd_award_comment_points($comment_id, $approved) {
+    if ($approved !== 1) {
+        return; // chỉ khi đã duyệt (auto-approve = 1)
+    }
+    $c = get_comment($comment_id);
+    if (!$c || (int) $c->user_id < 1) {
+        return; // chỉ user đăng nhập
+    }
+    bd_award_points((int) $c->user_id, 'comment', (int) $c->comment_post_ID);
+}
