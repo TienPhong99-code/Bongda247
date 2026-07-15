@@ -287,6 +287,7 @@ wp/bin/wp <command>   # WP-CLI wrapper local
    - Section 6: Nhận định & Dự đoán tỉ số
 3. Gửi preview Telegram: title, excerpt, dự đoán với nút `✅ Đăng bài nhận định` / `⏭ Bỏ qua`
 4. Duyệt → `generateMatchPreviewImage()` tạo ảnh JPEG 1200×630px → upload WordPress Media Library làm featured image
+5. Bài được gắn **tag "Nhận định"** (slug `nhan-dinh`, qua `resolveTags`) → tự lên trang hub `/nhan-dinh/` (khối "Bài phân tích"). Chỉ Luồng 6 gắn tag này (Luồng 2/5 không)
 
 **Lưu ý:** H2H, lực lượng, đội hình dự kiến do Gemini tự điền từ kiến thức training — chính xác với các đội lớn PL, có thể không cập nhật diễn biến mới nhất
 

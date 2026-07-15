@@ -1066,7 +1066,8 @@ bot.on("callback_query", async (ctx) => {
         html: buildHtml(data.sections || [], contentImages, sportsDbCaption),
         excerpt: data.excerpt,
         categoryId: categoryId ?? null,
-        tags: data.hashtags ?? [],
+        // Gắn tag "Nhận định" (slug nhan-dinh) để bài lên trang hub /nhan-dinh/ (khối "Bài phân tích").
+        tags: ["Nhận định", ...(data.hashtags ?? [])],
         featuredMedia: mainImage?.id ?? null,
       });
 
