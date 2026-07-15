@@ -170,8 +170,12 @@
         if (res && res.success) {
           var gate = btn.closest('[data-bd-pred-gate]');
           if (gate) {
-            gate.innerHTML = '<div class="inline-block mt-auto w-fit ml-auto text-sm transition-all p-2 px-4 rounded-full font-hemi bg-prediction"></div>';
-            gate.querySelector('div').textContent = res.data.prediction;
+            // Dựng badge bằng createElement + textContent (KHÔNG innerHTML cho giá trị) — chống XSS.
+            var badge = document.createElement('div');
+            badge.className = 'inline-block mt-auto w-fit ml-auto text-sm transition-all p-2 px-4 rounded-full font-hemi bg-prediction';
+            badge.textContent = res.data.prediction;
+            gate.innerHTML = '';
+            gate.appendChild(badge);
           }
           var bal = document.querySelector('[data-bd-points-balance]');
           if (bal) bal.textContent = res.data.points;
