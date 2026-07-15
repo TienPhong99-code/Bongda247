@@ -89,3 +89,72 @@ function bd_award_comment_points($comment_id, $approved) {
     }
     bd_award_points((int) $c->user_id, 'comment', (int) $c->comment_post_ID);
 }
+
+// ─── SP3: Mở khóa dự đoán ──────────────────────────────────────────────────
+
+const BD_UNLOCK_COST = 5;
+
+/** Trừ điểm nếu đủ. true nếu vừa trừ, false nếu không đủ. */
+function bd_spend_points($uid, $amount) {
+    $cur = bd_get_points($uid);
+    if ($cur < $amount) {
+        return false;
+    }
+    update_user_meta($uid, 'bd_points', $cur - $amount);
+    return true;
+}
+
+/** Đã mở khóa insight này chưa? */
+function bd_is_unlocked($uid, $iid) {
+    $unlocked = array_filter((array) get_user_meta($uid, 'bd_unlocked_insights', true));
+    return in_array((int) $iid, array_map('intval', $unlocked), true);
+}
+
+// AJAX: mở khóa dự đoán 1 match_insight (trừ 5đ, idempotent).
+add_action('wp_ajax_bd_unlock', 'bd_ajax_unlock');
+function bd_ajax_unlock() {
+    check_ajax_referer('bd_points');
+    if (!is_user_logged_in()) {
+        wp_send_json_error('auth', 403);
+    }
+    $iid = (int) ($_POST['insight_id'] ?? 0);
+    $p   = get_post($iid);
+    if (!$p || $p->post_type !== 'match_insight') {
+        wp_send_json_error('invalid', 400);
+    }
+    $uid  = get_current_user_id();
+    $pred = (string) get_post_meta($iid, 'prediction', true);
+
+    if (bd_is_unlocked($uid, $iid)) {
+        wp_send_json_success(['points' => bd_get_points($uid), 'prediction' => $pred]);
+    }
+    if (!bd_spend_points($uid, BD_UNLOCK_COST)) {
+        wp_send_json_error('nopoints', 402);
+    }
+    $unlocked   = array_filter((array) get_user_meta($uid, 'bd_unlocked_insights', true));
+    $unlocked[] = $iid;
+    update_user_meta($uid, 'bd_unlocked_insights', array_values(array_unique(array_map('intval', $unlocked))));
+    wp_send_json_success(['points' => bd_get_points($uid), 'prediction' => $pred]);
+}
+
+/** Badge dự đoán: khóa / đã mở / khách. Dùng chung carousel + hub. */
+function bd_prediction_badge($iid, $prediction) {
+    $prediction = (string) $prediction;
+    if ($prediction === '') {
+        return '';
+    }
+    $badge_cls = 'inline-block mt-auto w-fit ml-auto text-sm transition-all p-2 px-4 rounded-full font-hemi bg-prediction';
+
+    if (is_user_logged_in() && bd_is_unlocked(get_current_user_id(), $iid)) {
+        return '<div data-bd-pred-gate class="mt-auto ml-auto w-fit"><div class="' . $badge_cls . '">' . esc_html($prediction) . '</div></div>';
+    }
+
+    $out = '<div data-bd-pred-gate class="mt-auto ml-auto w-fit">';
+    if (!is_user_logged_in()) {
+        $out .= '<a href="' . esc_url(home_url('/tai-khoan/')) . '" class="inline-flex items-center gap-1 text-xs rounded-full border border-card px-3 py-1.5 text-secondary hover:text-brand hover:border-brand transition-colors">🔒 Đăng nhập để xem dự đoán</a>';
+    } else {
+        $out .= '<button type="button" data-bd-unlock data-bd-insight="' . esc_attr($iid) . '" data-bd-ajax="' . esc_url(admin_url('admin-ajax.php')) . '" data-bd-nonce="' . esc_attr(wp_create_nonce('bd_points')) . '" class="inline-flex items-center gap-1 text-xs rounded-full border border-brand px-3 py-1.5 text-brand hover:bg-brand hover:text-white transition-colors cursor-pointer">🔒 Mở khóa (' . (int) BD_UNLOCK_COST . ' điểm)</button>';
+    }
+    $out .= '</div>';
+    return $out;
+}
