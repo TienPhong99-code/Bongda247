@@ -74,6 +74,8 @@ wp/
 │   ├── search.php          # Trang kết quả tìm kiếm
 │   ├── page-bang-xep-hang.php # Trang BXH đầy đủ (?league=slug)
 │   ├── page-lich-thi-dau.php  # Trang lịch + kết quả đầy đủ (?league=slug)
+│   ├── page-ket-qua-bong-da.php # Trang Kết quả bóng đá (FINISHED 5 giải, nhóm theo ngày)
+│   ├── page-nhan-dinh.php     # Trang Nhận định (cards CPT sắp tới + bài phân tích tag nhan-dinh)
 │   ├── page.php            # Trang tĩnh mặc định
 │   ├── 404.php             # Trang 404
 │   ├── header.php          # Header + nav + search-toggle + mobile menu
@@ -92,6 +94,7 @@ wp/
 │   │   ├── fd-widget-body.php     # Phần đổi theo giải: 3 tab BXH/Lịch/KQ (AJAX render lại)
 │   │   ├── standings-table.php    # Bảng BXH đầy đủ (trang BXH)
 │   │   ├── fixtures-list.php      # Danh sách lịch/kết quả (trang lịch)
+│   │   ├── insight-card.php       # 1 card nhận định (dùng ở trang Nhận định)
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
@@ -118,6 +121,8 @@ wp/
 - `/?s=từ+khóa` — Kết quả tìm kiếm
 - `/bang-xep-hang/?league={slug}` — BXH đầy đủ 1 giải
 - `/lich-thi-dau/?league={slug}` — Lịch + kết quả đầy đủ 1 giải
+- `/ket-qua-bong-da/` — Kết quả bóng đá (trận FINISHED 5 giải, nhóm theo ngày)
+- `/nhan-dinh/` — Nhận định bóng đá (cards CPT match_insight sắp tới + bài phân tích tag `nhan-dinh`)
 
 ### admin-ajax (theme)
 - `GET /wp-admin/admin-ajax.php?action=bd_fd_widget&league={slug}` — render lại body widget số liệu (BXH/Lịch/KQ) cho 1 giải; input `league` validate qua `BD_FD_LEAGUES` (sai → default `ngoai-hang-anh`). Dùng cho dropdown đổi giải trên trang chủ (không reload).
@@ -136,7 +141,7 @@ wp/
 | Service | Mục đích |
 |---------|----------|
 | WordPress REST API | CMS — Lưu bài viết, danh mục, nhận định trận |
-| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint. Dùng bởi **bot** (env `PUBLIC_FOOTBALL_DATA_KEY`) VÀ **theme** (`inc/football-data.php`, đọc hằng wp-config `FOOTBALL_DATA_KEY`, cache stale-while-revalidate) cho widget số liệu + **dải trận đấu nổi bật** (`bd_fd_featured_matches()` gộp fixtures 5 giải, tái dùng cache) trang chủ + trang BXH/lịch |
+| Football-Data.org (football-data.org) | Fixtures + BXH — free plan: 10 req/min, per-competition endpoint. Dùng bởi **bot** (env `PUBLIC_FOOTBALL_DATA_KEY`) VÀ **theme** (`inc/football-data.php`, đọc hằng wp-config `FOOTBALL_DATA_KEY`, cache stale-while-revalidate) cho widget số liệu + **dải trận đấu nổi bật** (`bd_fd_featured_matches()`) trang chủ + **trang Kết quả** (`bd_fd_results_by_date()` gom FINISHED 5 giải nhóm theo ngày) + trang BXH/lịch. Tất cả gộp 5 giải đều tái dùng cache `bd_fd_fixtures()` |
 | Google Gemini 2.5 Flash | AI tạo phân tích, nhận định, viết lại bài RSS |
 | Telegram Bot | Phân phối nội dung tự động + kiểm duyệt |
 | RSS Feeds | Sky Sports, BBC Sport, Bóng Đá Plus — nguồn tin tức tự động |
