@@ -3,6 +3,8 @@
 <div class="container">
   <h1 class="font-hemi text-3xl uppercase border-l-4 border-brand pl-4 mb-6">Nhận định bóng đá</h1>
 
+  <div class="mb-8"><?php get_template_part('template-parts/prediction-badge'); ?></div>
+
   <?php
   // Khối trên: nhận định trận sắp tới (CPT), lọc hạn như carousel trang chủ.
   $bd_q = bd_insights(8);
