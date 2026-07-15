@@ -128,12 +128,14 @@ function bd_ajax_unlock() {
     if (bd_is_unlocked($uid, $iid)) {
         wp_send_json_success(['points' => bd_get_points($uid), 'prediction' => $pred]);
     }
-    if (!bd_spend_points($uid, BD_UNLOCK_COST)) {
+    if (bd_get_points($uid) < BD_UNLOCK_COST) {
         wp_send_json_error('nopoints', 402);
     }
+    // Ghi mở khóa TRƯỚC, trừ điểm SAU: nếu update_user_meta lỗi thì chưa trừ điểm (không thiệt user).
     $unlocked   = array_filter((array) get_user_meta($uid, 'bd_unlocked_insights', true));
     $unlocked[] = $iid;
     update_user_meta($uid, 'bd_unlocked_insights', array_values(array_unique(array_map('intval', $unlocked))));
+    bd_spend_points($uid, BD_UNLOCK_COST);
     wp_send_json_success(['points' => bd_get_points($uid), 'prediction' => $pred]);
 }
 
@@ -153,7 +155,7 @@ function bd_prediction_badge($iid, $prediction) {
     if (!is_user_logged_in()) {
         $out .= '<a href="' . esc_url(home_url('/tai-khoan/')) . '" class="inline-flex items-center gap-1 text-xs rounded-full border border-card px-3 py-1.5 text-secondary hover:text-brand hover:border-brand transition-colors">🔒 Đăng nhập để xem dự đoán</a>';
     } else {
-        $out .= '<button type="button" data-bd-unlock data-bd-insight="' . esc_attr($iid) . '" data-bd-ajax="' . esc_url(admin_url('admin-ajax.php')) . '" data-bd-nonce="' . esc_attr(wp_create_nonce('bd_points')) . '" class="inline-flex items-center gap-1 text-xs rounded-full border border-brand px-3 py-1.5 text-brand hover:bg-brand hover:text-white transition-colors cursor-pointer">🔒 Mở khóa (' . (int) BD_UNLOCK_COST . ' điểm)</button>';
+        $out .= '<button type="button" data-bd-unlock data-bd-insight="' . esc_attr((int) $iid) . '" data-bd-ajax="' . esc_url(admin_url('admin-ajax.php')) . '" data-bd-nonce="' . esc_attr(wp_create_nonce('bd_points')) . '" class="inline-flex items-center gap-1 text-xs rounded-full border border-brand px-3 py-1.5 text-brand hover:bg-brand hover:text-white transition-colors cursor-pointer">🔒 Mở khóa (' . (int) BD_UNLOCK_COST . ' điểm)</button>';
     }
     $out .= '</div>';
     return $out;
