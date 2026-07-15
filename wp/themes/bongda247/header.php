@@ -38,21 +38,26 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
           <span class="font-hemi text-2xl font-bold uppercase">BONGDA<span class="text-brand">247</span></span>
         </a>
 
-        <ul class="hidden lg:flex space-x-8">
-          <?php foreach ($bd_nav as $item) :
-              $term = get_term_by('slug', $item['slug'], 'category');
-              if (!$term) continue; ?>
-            <li>
-              <a href="<?php echo esc_url(get_term_link($term)); ?>"
-                 class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">
-                <?php echo esc_html($item['name']); ?>
-              </a>
-            </li>
-          <?php endforeach; ?>
-            <li><a href="<?php echo esc_url(home_url('/bang-xep-hang/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">BXH</a></li>
-            <li><a href="<?php echo esc_url(home_url('/lich-thi-dau/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Lịch</a></li>
-            <li><a href="<?php echo esc_url(home_url('/ket-qua-bong-da/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Kết quả</a></li>
+        <ul class="hidden lg:flex items-center space-x-7">
+          <li class="group relative">
+            <button type="button" class="flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand transition-colors cursor-pointer">
+              Giải đấu
+              <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+            <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-opacity absolute left-0 top-full pt-3">
+              <ul class="w-52 rounded-xl border border-card bg-card shadow-xl p-2">
+                <?php foreach ($bd_nav as $item) :
+                    $term = get_term_by('slug', $item['slug'], 'category');
+                    if (!$term) continue; ?>
+                  <li><a href="<?php echo esc_url(get_term_link($term)); ?>" class="block px-3 py-2 rounded-lg text-sm font-medium text-secondary hover:text-brand hover:bg-control transition-colors"><?php echo esc_html($item['name']); ?></a></li>
+                <?php endforeach; ?>
+              </ul>
+            </div>
+          </li>
             <li><a href="<?php echo esc_url(home_url('/nhan-dinh/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Nhận định</a></li>
+            <li><a href="<?php echo esc_url(home_url('/ket-qua-bong-da/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Kết quả</a></li>
+            <li><a href="<?php echo esc_url(home_url('/lich-thi-dau/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Lịch</a></li>
+            <li><a href="<?php echo esc_url(home_url('/bang-xep-hang/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">BXH</a></li>
         </ul>
 
         <div class="flex items-center space-x-3">
