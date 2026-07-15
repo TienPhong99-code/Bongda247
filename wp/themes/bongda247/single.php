@@ -27,6 +27,9 @@
             </span>
           <?php endif; ?>
           <time datetime="<?php echo esc_attr(get_the_date('c')); ?>"><?php echo esc_html(get_the_date('d/m/Y')); ?></time>
+          <?php if (get_the_modified_time('U') > get_the_date('U') + HOUR_IN_SECONDS) : ?>
+            <time datetime="<?php echo esc_attr(get_the_modified_date('c')); ?>" class="text-xs">Cập nhật: <?php echo esc_html(get_the_modified_date('d/m/Y')); ?></time>
+          <?php endif; ?>
         </div>
       </header>
 
@@ -37,8 +40,19 @@
       <?php endif; ?>
 
       <div class="p-6 md:p-10 rounded-3xl border border-card shadow-inner bg-card">
+        <?php $bd_c = bd_toc(apply_filters('the_content', get_the_content())); ?>
+        <?php if (count($bd_c['items']) >= 3) : ?>
+          <nav class="mb-8 p-5 rounded-2xl border border-card bg-control" aria-label="Mục lục">
+            <div class="font-hemi text-sm uppercase text-secondary mb-3">Mục lục</div>
+            <ol class="space-y-2 list-decimal list-inside">
+              <?php foreach ($bd_c['items'] as $bd_item) : ?>
+                <li><a href="#<?php echo esc_attr($bd_item['id']); ?>" class="text-sm text-secondary hover:text-brand"><?php echo esc_html($bd_item['text']); ?></a></li>
+              <?php endforeach; ?>
+            </ol>
+          </nav>
+        <?php endif; ?>
         <div class="prose-bd">
-          <?php the_content(); ?>
+          <?php echo $bd_c['content']; ?>
         </div>
 
         <?php if ($tags) : ?>
@@ -63,8 +77,12 @@
             </a>
           </p>
         <?php endif; ?>
+
+        <?php get_template_part('template-parts/author-box'); ?>
       </div>
     </article>
+
+    <?php get_template_part('template-parts/related-posts'); ?>
   <?php endwhile; ?>
 </div>
 
