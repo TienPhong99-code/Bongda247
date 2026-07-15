@@ -4,6 +4,7 @@ import { message } from "telegraf/filters";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 // import Anthropic from "@anthropic-ai/sdk"; // TODO: chuyển sang Claude API sau
 import * as wp from "./lib/wp.js";
+import { gradePrediction } from "./lib/grade.js";
 import axios from "axios";
 import cron from "node-cron";
 import RssParser from "rss-parser";
@@ -351,6 +352,8 @@ Bạn là chuyên gia phân tích bóng đá tiếng Việt. Viết insights NG�
 Trận: ${homeTeam} vs ${awayTeam} | ${leagueInfo.name} | ${matchTime}
 ${dataContext}
 
+- predHome, predAway: tỉ số dự đoán dạng SỐ NGUYÊN (VD predHome=2, predAway=1 nghĩa là dự đoán 2-1)
+
 Trả về DUY NHẤT JSON hợp lệ:
 {
   "homeTeam": "${homeTeam}",
@@ -363,6 +366,8 @@ Trả về DUY NHẤT JSON hợp lệ:
     "⚖️ [so sánh 2 đội, tối đa 12 từ]",
     "🔑 [yếu tố quyết định trận đấu, tối đa 12 từ]"
   ],
+  "predHome": 0,
+  "predAway": 0,
   "prediction": "Tỉ số dự đoán + lý do ngắn (tối đa 10 từ)"
 }`;
 
@@ -376,6 +381,9 @@ Trả về DUY NHẤT JSON hợp lệ:
     leagueName: leagueInfo.name,
     leagueFlag: leagueInfo.flag,
     matchDate: match.utcDate, // ISO datetime thực tế — dùng để auto-delete
+    matchId: match.id,
+    predHome: Number.parseInt(data.predHome, 10),
+    predAway: Number.parseInt(data.predAway, 10),
   };
 }
 
@@ -731,6 +739,12 @@ bot.command("fetchnews", async (ctx) => {
   runNewsFetch().catch((e) => ctx.reply("❌ Lỗi fetch news: " + e.message));
 });
 
+bot.command("settle", async (ctx) => {
+  await ctx.reply("🔄 Đang đối chiếu dự đoán...");
+  await reconcilePredictions();
+  await ctx.reply("✅ Xong đối chiếu.");
+});
+
 bot.command("testapi", async (ctx) => {
   await ctx.reply("🔍 Đang test football-data.org...");
   try {
@@ -925,6 +939,18 @@ bot.on("callback_query", async (ctx) => {
         insights: draft.insights,
         prediction: draft.prediction,
       });
+      if (draft.matchId && Number.isInteger(draft.predHome) && Number.isInteger(draft.predAway)) {
+        wp.createPrediction({
+          matchId: draft.matchId,
+          home: draft.homeTeam,
+          away: draft.awayTeam,
+          leagueCode: draft.leagueCode,
+          matchDate: draft.matchDate,
+          predHome: draft.predHome,
+          predAway: draft.predAway,
+          predText: draft.prediction,
+        }).catch((e) => console.warn("⚠️ createPrediction:", e.message));
+      }
       ctx.answerCbQuery("✅ Đã đăng lên Slide!");
       ctx.editMessageText(
         `✅ *Đã lên Slide!*\n🏟 *${draft.homeTeam}* vs *${draft.awayTeam}*  ⏰ ${draft.matchTime}\n${draft.hot ? "🔥 HOT" : ""}`,
@@ -1524,7 +1550,87 @@ async function runNewsFetch() {
 }
 
 // ============================================================
-// 15. CRON JOBS
+// 15. RECONCILE PREDICTIONS
+// ============================================================
+
+// Đối chiếu dự đoán pending với kết quả thật → chấm → settle → báo Telegram.
+async function reconcilePredictions() {
+  let pending;
+  try {
+    pending = await wp.listPredictions({ status: "pending" });
+  } catch (e) {
+    console.warn("⚠️ listPredictions:", e.message);
+    return;
+  }
+  const now = Date.now();
+  const due = pending.filter((p) => {
+    const t = Date.parse(p.match_date);
+    return Number.isFinite(t) && t + 3 * 3600 * 1000 < now && p.match_id;
+  });
+  if (!due.length) return;
+
+  // Gom theo (league_code, ngày) để fetch mỗi giải/ngày 1 lần.
+  const groups = {};
+  for (const p of due) {
+    const key = `${p.league_code}|${String(p.match_date).slice(0, 10)}`;
+    (groups[key] ??= []).push(p);
+  }
+
+  const resultById = {};
+  for (const key of Object.keys(groups)) {
+    const [code, day] = key.split("|");
+    try {
+      const res = await axios.get(`${FD_BASE}/competitions/${code}/matches`, {
+        headers: FD_HEADERS,
+        params: { dateFrom: day, dateTo: day },
+        timeout: 15000,
+      });
+      for (const m of res.data.matches ?? []) {
+        resultById[m.id] = {
+          status: m.status,
+          home: m.score?.fullTime?.home,
+          away: m.score?.fullTime?.away,
+        };
+      }
+    } catch (e) {
+      console.warn(`⚠️ reconcile ${code} ${day}:`, e.message);
+    }
+    await delay(7000);
+  }
+
+  let settled = 0;
+  let correct = 0;
+  for (const p of due) {
+    const r = resultById[p.match_id];
+    if (!r || r.status !== "FINISHED" || r.home == null || r.away == null) continue;
+    const g = gradePrediction(
+      { home: Number(p.pred_home), away: Number(p.pred_away) },
+      { home: r.home, away: r.away }
+    );
+    try {
+      await wp.settlePrediction(p.id, {
+        actualHome: r.home,
+        actualAway: r.away,
+        outcomeCorrect: g.outcome_correct,
+        scoreCorrect: g.score_correct,
+      });
+      settled++;
+      correct += g.outcome_correct;
+    } catch (e) {
+      console.warn(`⚠️ settle ${p.id}:`, e.message);
+    }
+  }
+
+  if (settled > 0) {
+    await bot.telegram.sendMessage(
+      OWNER_CHAT_ID,
+      `✅ Đã chấm ${settled} dự đoán — đúng ${correct}/${settled} (kết quả 1X2).`
+    );
+  }
+}
+
+// ============================================================
+// 16. CRON JOBS
 // ============================================================
 
 // 8:00 sáng — gửi nhận định hàng ngày
@@ -1567,6 +1673,9 @@ cron.schedule(
   },
   { timezone: "Asia/Ho_Chi_Minh" }
 );
+
+// 10:00 sáng — đối chiếu & chấm dự đoán (trận đêm đã kết thúc)
+cron.schedule("0 10 * * *", () => reconcilePredictions(), { timezone: "Asia/Ho_Chi_Minh" });
 
 // 7:55 sáng — tự động xóa insight cũ (chạy trước daily preview 5 phút)
 cron.schedule(
