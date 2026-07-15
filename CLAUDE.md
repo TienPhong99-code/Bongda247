@@ -69,7 +69,7 @@ wp/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
 │   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
-│   ├── single.php          # Bài viết đơn (+ mục lục TOC, author box, ngày cập nhật, bài liên quan)
+│   ├── single.php          # Bài viết đơn (+ mục lục TOC, author box, ngày cập nhật, bài liên quan, nút Like tích điểm)
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
 │   ├── page-bang-xep-hang.php # Trang BXH đầy đủ (?league=slug)
@@ -88,7 +88,8 @@ wp/
 │   │   ├── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
 │   │   ├── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
 │   │   ├── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
-│   │   └── auth.php        # Handler đăng ký/đăng nhập frontend (admin-post, engine WP) + ẩn admin bar cho reader
+│   │   ├── auth.php        # Handler đăng ký/đăng nhập frontend (admin-post, engine WP) + ẩn admin bar cho reader
+│   │   └── points.php      # Ví điểm bd_award_points/bd_get_points + AJAX bd_award/bd_toggle_like (tích điểm đọc/like)
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
@@ -244,6 +245,12 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 - `pred_home`/`pred_away` (int tỉ số dự đoán), `pred_text` (string)
 - `status` ("pending"→"settled"), `actual_home`/`actual_away` (int), `outcome_correct`/`score_correct` (int 0/1), `settled_at`
 - Đọc bởi `bd_prediction_stats()` (theme) cho trang `/thanh-tich-du-doan/` + badge. **Ghi/đối chiếu = SP-B (bot, chưa làm).**
+
+### Hệ thống điểm (`inc/points.php`) — Giai đoạn 1 monetization
+- **User** frontend: role `subscriber`, đăng ký/đăng nhập qua `/tai-khoan/` (engine auth WP, `inc/auth.php`).
+- **Ví điểm** ở user meta: `bd_points` (int số dư); mảng dedup post IDs: `bd_read_posts`, `bd_liked_posts` (trạng thái like), `bd_like_awarded_posts` (đã cộng điểm like), `bd_share_posts`, `bd_comment_posts`. Post meta `bd_like_count` (int).
+- Bảng điểm: **Đọc 1 · Like 1 · Share 3 · Comment 5**. `bd_award_points($uid,$action,$post_id)` cộng + dedup 1 lần/(user,post,action). AJAX `bd_award` (sub=read/share) + `bd_toggle_like` (nonce `bd_points`, chỉ user đăng nhập, KHÔNG nopriv). Đọc = cuộn ≥60% + ≥20s (JS `src/main.js`). Un-like KHÔNG trừ điểm.
+- **Đã làm:** SP2.1 (điểm core + đọc + like). **Chưa:** SP2.2 comment earn, SP2.3 share earn, SP3 mở khóa dự đoán, nạp tiền.
 
 ---
 
