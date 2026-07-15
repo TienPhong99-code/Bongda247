@@ -69,7 +69,8 @@ wp/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
 │   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
-│   ├── single.php          # Bài viết đơn (+ mục lục TOC, author box, ngày cập nhật, bài liên quan, nút Like tích điểm)
+│   ├── single.php          # Bài viết đơn (+ mục lục TOC, author box, ngày cập nhật, bài liên quan, nút Like, bình luận tích điểm)
+│   ├── comments.php        # Template bình luận (list + form, bắt đăng nhập, cộng 5đ/comment đầu)
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
 │   ├── page-bang-xep-hang.php # Trang BXH đầy đủ (?league=slug)
@@ -250,7 +251,8 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 - **User** frontend: role `subscriber`, đăng ký/đăng nhập qua `/tai-khoan/` (engine auth WP, `inc/auth.php`).
 - **Ví điểm** ở user meta: `bd_points` (int số dư); mảng dedup post IDs: `bd_read_posts`, `bd_liked_posts` (trạng thái like), `bd_like_awarded_posts` (đã cộng điểm like), `bd_share_posts`, `bd_comment_posts`. Post meta `bd_like_count` (int).
 - Bảng điểm: **Đọc 1 · Like 1 · Share 3 · Comment 5**. `bd_award_points($uid,$action,$post_id)` cộng + dedup 1 lần/(user,post,action). AJAX `bd_award` (sub=read/share) + `bd_toggle_like` (nonce `bd_points`, chỉ user đăng nhập, KHÔNG nopriv). Đọc = cuộn ≥60% + ≥20s (JS `src/main.js`). Un-like KHÔNG trừ điểm.
-- **Đã làm:** SP2.1 (điểm core + đọc + like). **Chưa:** SP2.2 comment earn, SP2.3 share earn, SP3 mở khóa dự đoán, nạp tiền.
+- **Comment** (SP2.2): hook `comment_post` → cộng 5đ comment đầu/bài (user đăng nhập, `$approved===1`). `comments.php` render list+form. Cần 2 WP option: `comment_registration=1` (bắt đăng nhập) + **`comment_previously_approved=0`** (tự duyệt cả comment đầu → cộng điểm ngay, KHÔNG giữ chờ duyệt). WP flood-control tự chặn spam comment liên tiếp.
+- **Đã làm:** SP2.1 (đọc+like) + SP2.2 (comment). **Chưa:** SP2.3 share earn, SP3 mở khóa dự đoán, nạp tiền.
 
 ---
 
