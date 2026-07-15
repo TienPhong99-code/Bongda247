@@ -135,13 +135,26 @@ test("createInsight ghi được meta mảng insights", async () => {
   });
   created.match_insight.push(insight.id);
 
-  const res = await fetch(`${process.env.WP_URL}/wp-json/wp/v2/match_insight/${insight.id}`);
+  // Đọc CÓ XÁC THỰC (như bot, role editor) — thấy đủ meta gồm prediction.
+  const auth =
+    "Basic " +
+    Buffer.from(`${process.env.WP_USER}:${process.env.WP_APP_PASSWORD}`).toString("base64");
+  const res = await fetch(`${process.env.WP_URL}/wp-json/wp/v2/match_insight/${insight.id}`, {
+    headers: { Authorization: auth },
+  });
   const body = await res.json();
   assert.equal(body.meta.home_team, "Arsenal");
   assert.equal(body.meta.hot, 1);
   assert.equal(body.meta.insights.length, 3);
   assert.equal(body.meta.insights[0], "Arsenal thắng 8/10 sân nhà");
   assert.equal(body.meta.prediction, "Arsenal thắng 2-1");
+
+  // Paywall (SP3): KHÁCH (không xác thực) KHÔNG được thấy prediction qua REST —
+  // filter rest_prepare_match_insight (mu-plugin) chặn rò rỉ dự đoán bị khóa.
+  const guest = await fetch(`${process.env.WP_URL}/wp-json/wp/v2/match_insight/${insight.id}`);
+  const guestBody = await guest.json();
+  assert.equal(guestBody.meta.home_team, "Arsenal", "khách vẫn thấy field công khai");
+  assert.equal(guestBody.meta.prediction, undefined, "khách KHÔNG được thấy prediction (paywall SP3)");
 });
 
 test("listInsights map meta về đúng shape bot cần", async () => {
