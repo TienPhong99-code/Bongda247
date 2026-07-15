@@ -76,6 +76,7 @@ wp/
 │   ├── page-lich-thi-dau.php  # Trang lịch + kết quả đầy đủ (?league=slug)
 │   ├── page-ket-qua-bong-da.php # Trang Kết quả bóng đá (FINISHED 5 giải, nhóm theo ngày)
 │   ├── page-nhan-dinh.php     # Trang Nhận định (cards CPT sắp tới + bài phân tích tag nhan-dinh)
+│   ├── page-thanh-tich-du-doan.php # Trang Thành tích dự đoán (% AI đúng + bảng trận)
 │   ├── page.php            # Trang tĩnh mặc định
 │   ├── 404.php             # Trang 404
 │   ├── header.php          # Header + nav + search-toggle + mobile menu
@@ -84,7 +85,8 @@ wp/
 │   │   ├── query.php       # WP_Query helpers (bd_category_posts, bd_hero, ...)
 │   │   ├── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
 │   │   ├── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
-│   │   └── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
+│   │   ├── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
+│   │   └── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
@@ -97,6 +99,7 @@ wp/
 │   │   ├── standings-table.php    # Bảng BXH đầy đủ (trang BXH)
 │   │   ├── fixtures-list.php      # Danh sách lịch/kết quả (trang lịch)
 │   │   ├── insight-card.php       # 1 card nhận định (dùng ở trang Nhận định)
+│   │   ├── prediction-badge.php   # Badge "AI dự đoán đúng X%" (link trang thành tích)
 │   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
 │   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
@@ -127,6 +130,7 @@ wp/
 - `/lich-thi-dau/?league={slug}` — Lịch + kết quả đầy đủ 1 giải
 - `/ket-qua-bong-da/` — Kết quả bóng đá (trận FINISHED 5 giải, nhóm theo ngày)
 - `/nhan-dinh/` — Nhận định bóng đá (cards CPT match_insight sắp tới + bài phân tích tag `nhan-dinh`)
+- `/thanh-tich-du-doan/` — Thành tích dự đoán (% AI đúng 1X2 + tỉ số + bảng trận gần nhất; đọc CPT `bd_prediction`)
 
 ### admin-ajax (theme)
 - `GET /wp-admin/admin-ajax.php?action=bd_fd_widget&league={slug}` — render lại body widget số liệu (BXH/Lịch/KQ) cho 1 giải; input `league` validate qua `BD_FD_LEAGUES` (sai → default `ngoai-hang-anh`). Dùng cho dropdown đổi giải trên trang chủ (không reload).
@@ -230,6 +234,13 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 - `home_team`, `away_team`, `match_time` (string "HH:mm - DD/MM")
 - `match_date` (ISO UTC datetime) — dùng để auto-delete sau trận
 - `hot` (int 0/1), `insights` (array string), `prediction` (string)
+
+### bd_prediction (Custom Post Type — `mu-plugins/bongda247-core.php`) — độ chính xác nhận định
+- **Lưu bền** (public=false, KHÔNG auto-delete như match_insight). Bot ghi qua REST (`rest_base=bd_prediction`).
+- `match_id` (int, football-data — dedup + đối chiếu), `home_team`/`away_team`, `league_code`, `match_date` (ISO)
+- `pred_home`/`pred_away` (int tỉ số dự đoán), `pred_text` (string)
+- `status` ("pending"→"settled"), `actual_home`/`actual_away` (int), `outcome_correct`/`score_correct` (int 0/1), `settled_at`
+- Đọc bởi `bd_prediction_stats()` (theme) cho trang `/thanh-tich-du-doan/` + badge. **Ghi/đối chiếu = SP-B (bot, chưa làm).**
 
 ---
 
