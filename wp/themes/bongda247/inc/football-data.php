@@ -162,3 +162,45 @@ function bd_fd_featured_matches($limit = 8) {
     usort($out, function ($a, $b) { return $a['ts'] <=> $b['ts']; }); // hiển thị: quá khứ → tương lai
     return $out;
 }
+
+/**
+ * Kết quả (FINISHED) 5 giải trong $days ngày gần nhất, nhóm theo ngày (giờ site) giảm dần.
+ * Trả: [ ['label'=>'Hôm nay'|'Hôm qua'|'dd/mm', 'date'=>'Y-m-d', 'matches'=>[...]], ... ]
+ * Mỗi match = 1 trận bd_fd_fixtures() + 'ts' (unix) + 'league_slug' + 'league_name'.
+ * Tái dùng cache bd_fd_fixtures() — không thêm API.
+ */
+function bd_fd_results_by_date($days = 7) {
+    $cutoff  = time() - $days * DAY_IN_SECONDS;
+    $matches = [];
+    foreach (BD_FD_LEAGUES as $slug => $lg) {
+        foreach (bd_fd_fixtures($lg['code']) as $m) {
+            if (($m['status'] ?? '') !== 'FINISHED') continue;
+            if (empty($m['utcDate'])) continue;
+            $ts = strtotime($m['utcDate']);
+            if ($ts === false || $ts < $cutoff) continue;
+            $m['ts']          = $ts;
+            $m['league_slug'] = $slug;
+            $m['league_name'] = $lg['name'];
+            $matches[] = $m;
+        }
+    }
+    if (!$matches) return [];
+
+    $groups = [];
+    foreach ($matches as $m) {
+        $groups[wp_date('Y-m-d', $m['ts'])][] = $m;
+    }
+    krsort($groups); // ngày giảm dần (khóa ISO sort chuỗi = đúng thứ tự)
+
+    $today     = wp_date('Y-m-d');
+    $yesterday = wp_date('Y-m-d', time() - DAY_IN_SECONDS);
+    $out = [];
+    foreach ($groups as $day => $ms) {
+        usort($ms, function ($a, $b) { return $b['ts'] <=> $a['ts']; }); // trong ngày: mới nhất trước
+        if ($day === $today)          $label = 'Hôm nay';
+        elseif ($day === $yesterday)  $label = 'Hôm qua';
+        else                          $label = wp_date('d/m', $ms[0]['ts']);
+        $out[] = ['label' => $label, 'date' => $day, 'matches' => $ms];
+    }
+    return $out;
+}
