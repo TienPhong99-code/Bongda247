@@ -34,6 +34,23 @@ function bd_register_match_insight() {
     ]);
 }
 
+add_action('init', 'bd_register_prediction');
+function bd_register_prediction() {
+    register_post_type('bd_prediction', [
+        'labels' => [
+            'name'          => 'Dự đoán',
+            'singular_name' => 'Dự đoán',
+            'menu_name'     => 'Dự đoán',
+        ],
+        'public'       => false,
+        'show_ui'      => true,
+        'show_in_rest' => true,
+        'rest_base'    => 'bd_prediction',
+        'menu_icon'    => 'dashicons-chart-line',
+        'supports'     => ['title', 'custom-fields'],
+    ]);
+}
+
 add_action('init', 'bd_register_meta');
 function bd_register_meta() {
     // Meta chuỗi của match_insight
@@ -71,6 +88,26 @@ function bd_register_meta() {
         ],
         'auth_callback' => 'bd_meta_auth',
     ]);
+
+    // Meta CPT bd_prediction — theo dõi độ chính xác nhận định
+    foreach (['home_team', 'away_team', 'league_code', 'match_date', 'pred_text', 'status', 'settled_at'] as $key) {
+        register_post_meta('bd_prediction', $key, [
+            'type'          => 'string',
+            'single'        => true,
+            'default'       => '',
+            'show_in_rest'  => true,
+            'auth_callback' => 'bd_meta_auth',
+        ]);
+    }
+    foreach (['match_id', 'pred_home', 'pred_away', 'actual_home', 'actual_away', 'outcome_correct', 'score_correct'] as $key) {
+        register_post_meta('bd_prediction', $key, [
+            'type'          => 'integer',
+            'single'        => true,
+            'default'       => 0,
+            'show_in_rest'  => true,
+            'auth_callback' => 'bd_meta_auth',
+        ]);
+    }
 
     // Nguồn bài RSS trên post thường
     foreach (['source_url', 'source_credit'] as $key) {
