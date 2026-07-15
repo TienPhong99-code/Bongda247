@@ -69,7 +69,7 @@ wp/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
 │   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
-│   ├── single.php          # Bài viết đơn (+ mục lục TOC, author box, ngày cập nhật, bài liên quan, nút Like, bình luận tích điểm)
+│   ├── single.php          # Bài viết đơn (+ TOC, author box, ngày cập nhật, bài liên quan, Like/Share/bình luận tích điểm)
 │   ├── comments.php        # Template bình luận (list + form, bắt đăng nhập, cộng 5đ/comment đầu)
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
@@ -252,7 +252,8 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 - **Ví điểm** ở user meta: `bd_points` (int số dư); mảng dedup post IDs: `bd_read_posts`, `bd_liked_posts` (trạng thái like), `bd_like_awarded_posts` (đã cộng điểm like), `bd_share_posts`, `bd_comment_posts`. Post meta `bd_like_count` (int).
 - Bảng điểm: **Đọc 1 · Like 1 · Share 3 · Comment 5**. `bd_award_points($uid,$action,$post_id)` cộng + dedup 1 lần/(user,post,action). AJAX `bd_award` (sub=read/share) + `bd_toggle_like` (nonce `bd_points`, chỉ user đăng nhập, KHÔNG nopriv). Đọc = cuộn ≥60% + ≥20s (JS `src/main.js`). Un-like KHÔNG trừ điểm.
 - **Comment** (SP2.2): hook `comment_post` → cộng 5đ comment đầu/bài (user đăng nhập, `$approved===1`). `comments.php` render list+form. Cần 2 WP option: `comment_registration=1` (bắt đăng nhập) + **`comment_previously_approved=0`** (tự duyệt cả comment đầu → cộng điểm ngay, KHÔNG giữ chờ duyệt). WP flood-control tự chặn spam comment liên tiếp.
-- **Đã làm:** SP2.1 (đọc+like) + SP2.2 (comment). **Chưa:** SP2.3 share earn, SP3 mở khóa dự đoán, nạp tiền.
+- **Share** (SP2.3): 3 nút FB/X/Copy trong khối reactions single (chỉ user đăng nhập) → JS gọi `bd_award sub=share` → +3đ lần đầu/bài (dedup). Không backend mới (tái dùng bd_award). Không verify share thật (cộng theo click, cap 1 lần/bài).
+- **Đã làm:** SP1 (tài khoản) + SP2 đầy đủ (đọc/like/comment/share). **Chưa:** SP3 mở khóa dự đoán bằng điểm, nạp tiền.
 
 ---
 
