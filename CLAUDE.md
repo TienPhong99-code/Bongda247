@@ -77,6 +77,7 @@ wp/
 │   ├── page-ket-qua-bong-da.php # Trang Kết quả bóng đá (FINISHED 5 giải, nhóm theo ngày)
 │   ├── page-nhan-dinh.php     # Trang Nhận định (cards CPT sắp tới + bài phân tích tag nhan-dinh)
 │   ├── page-thanh-tich-du-doan.php # Trang Thành tích dự đoán (% AI đúng + bảng trận)
+│   ├── page-tai-khoan.php  # Trang Tài khoản (đăng nhập/đăng ký/hồ sơ)
 │   ├── page.php            # Trang tĩnh mặc định
 │   ├── 404.php             # Trang 404
 │   ├── header.php          # Header + nav + search-toggle + mobile menu
@@ -86,7 +87,8 @@ wp/
 │   │   ├── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
 │   │   ├── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
 │   │   ├── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
-│   │   └── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
+│   │   ├── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
+│   │   └── auth.php        # Handler đăng ký/đăng nhập frontend (admin-post, engine WP) + ẩn admin bar cho reader
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
@@ -131,6 +133,7 @@ wp/
 - `/ket-qua-bong-da/` — Kết quả bóng đá (trận FINISHED 5 giải, nhóm theo ngày)
 - `/nhan-dinh/` — Nhận định bóng đá (cards CPT match_insight sắp tới + bài phân tích tag `nhan-dinh`)
 - `/thanh-tich-du-doan/` — Thành tích dự đoán (% AI đúng 1X2 + tỉ số + bảng trận gần nhất; đọc CPT `bd_prediction`)
+- `/tai-khoan/` — Tài khoản: đăng nhập/đăng ký (engine auth WP, form qua `admin-post.php` action `bd_login`/`bd_register`) · hồ sơ khi đã đăng nhập. Role người dùng = `subscriber`. Header đổi trạng thái (Đăng nhập ↔ tên + dropdown). *(Giai đoạn 1 của hệ thống điểm — SP2 tích điểm, SP3 mở khóa dự đoán sẽ làm sau.)*
 
 ### admin-ajax (theme)
 - `GET /wp-admin/admin-ajax.php?action=bd_fd_widget&league={slug}` — render lại body widget số liệu (BXH/Lịch/KQ) cho 1 giải; input `league` validate qua `BD_FD_LEAGUES` (sai → default `ngoai-hang-anh`). Dùng cho dropdown đổi giải trên trang chủ (không reload).
