@@ -396,8 +396,22 @@ PL: 4328, CL: 4480, PD: 4335, BL1: 4331, SA: 4332, FL1: 4334
 ### WordPress — Local / Hosting
 - **Local:** Chạy với Local by Flywheel hoặc MAMP, URL `http://bongda247.local`
 - **Production:** Upload `wp/themes/bongda247/` (kèm `dist/`) + `wp/mu-plugins/`
-- Cài RankMath, đặt permalink `/%category%/%postname%/`
-- Tạo user `bot` role editor + Application Password
+- Cài RankMath, đặt permalink `/%category%/%postname%/`, Site Language = Tiếng Việt
+- Tạo user `bot` role editor + Application Password, display name "Ban Biên Tập Bongda247" + nicename `ban-bien-tap` + bio
+
+### RankMath — cấu hình SEO (schema/OG/sitemap)
+Theme KHÔNG hand-code schema/OG → RankMath lo toàn bộ. Cấu hình nằm trong **DB options** (không theo git) → production phải set lại (chạy lại lệnh dưới HOẶC Rank Math → Import/Export Settings). Sau khi cài + active, thay vì chạy Setup Wizard có thể set nhanh qua wp-cli:
+```bash
+wp option patch update rank-math-options-titles knowledgegraph_type company
+wp option patch update rank-math-options-titles knowledgegraph_name "Bongda247"
+wp option patch update rank-math-options-titles website_name "Bongda247"
+wp option patch update rank-math-options-titles pt_post_default_article_type NewsArticle   # NewsArticle cho post
+wp option patch update rank-math-options-general breadcrumbs on
+wp option update rank_math_wizard_completed 1                                              # unblock output frontend
+wp option update rank_math_registration_skip 1
+wp rewrite flush                                                                            # để /sitemap_index.xml hoạt động
+```
+Kết quả: post có NewsArticle+BreadcrumbList+Organization+Person; home có Organization+WebSite+SearchAction; sitemap 4 mục (post/page/match_insight/category). **Còn thiếu:** upload logo PNG → Rank Math → Titles & Meta → Local SEO → Logo (WP chặn SVG; `publisher.logo` cần cho Article rich result).
 
 ### Bot (`bot-press.js`) — Railway
 - **URL:** railway.app, project Bongda247
