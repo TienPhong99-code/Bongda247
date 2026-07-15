@@ -61,6 +61,22 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
         </ul>
 
         <div class="flex items-center space-x-3">
+          <?php if (is_user_logged_in()) : $bd_cu = wp_get_current_user(); ?>
+            <div class="hidden lg:block relative group">
+              <button type="button" class="flex items-center gap-1 text-sm font-medium text-secondary hover:text-brand transition-colors cursor-pointer">
+                <?php echo esc_html($bd_cu->display_name); ?>
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+              </button>
+              <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-opacity absolute right-0 top-full pt-3">
+                <ul class="w-40 rounded-xl border border-card bg-card shadow-xl p-2">
+                  <li><a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="block px-3 py-2 rounded-lg text-sm text-secondary hover:text-brand hover:bg-control transition-colors">Tài khoản</a></li>
+                  <li><a href="<?php echo esc_url(wp_logout_url(home_url('/'))); ?>" class="block px-3 py-2 rounded-lg text-sm text-secondary hover:text-brand hover:bg-control transition-colors">Đăng xuất</a></li>
+                </ul>
+              </div>
+            </div>
+          <?php else : ?>
+            <a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="hidden lg:block text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand transition-colors">Đăng nhập</a>
+          <?php endif; ?>
           <button data-search-toggle type="button" aria-label="Tìm kiếm" aria-expanded="false"
                   class="p-2 rounded-full border border-card bg-control cursor-pointer transition-colors hover:text-brand">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
@@ -98,6 +114,14 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
             <li><a href="<?php echo esc_url(home_url('/lich-thi-dau/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Lịch</a></li>
             <li><a href="<?php echo esc_url(home_url('/ket-qua-bong-da/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Kết quả</a></li>
             <li><a href="<?php echo esc_url(home_url('/nhan-dinh/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Nhận định</a></li>
+            <?php if (is_user_logged_in()) : ?>
+              <li class="border-t border-card mt-2 pt-2"></li>
+              <li><a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Tài khoản</a></li>
+              <li><a href="<?php echo esc_url(wp_logout_url(home_url('/'))); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Đăng xuất</a></li>
+            <?php else : ?>
+              <li class="border-t border-card mt-2 pt-2"></li>
+              <li><a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Đăng nhập</a></li>
+            <?php endif; ?>
           <?php
           $bd_any_page = false;
           foreach ($bd_menu_pages as $bd_s => $bd_l) { if (get_page_by_path($bd_s)) { $bd_any_page = true; break; } }
