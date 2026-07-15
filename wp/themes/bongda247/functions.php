@@ -4,6 +4,7 @@ defined('ABSPATH') || exit;
 require_once get_stylesheet_directory() . '/inc/query.php';
 require_once get_stylesheet_directory() . '/inc/football-data.php';
 require_once get_stylesheet_directory() . '/inc/toc.php';
+require_once get_stylesheet_directory() . '/inc/schema.php';
 
 add_action('after_setup_theme', function () {
     add_theme_support('post-thumbnails');

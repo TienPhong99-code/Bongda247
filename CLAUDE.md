@@ -83,7 +83,8 @@ wp/
 │   ├── inc/
 │   │   ├── query.php       # WP_Query helpers (bd_category_posts, bd_hero, ...)
 │   │   ├── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
-│   │   └── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
+│   │   ├── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
+│   │   └── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
