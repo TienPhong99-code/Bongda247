@@ -279,7 +279,7 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 4. Gemini tạo nhận định dựa trên BXH (hạng, điểm, W/D/L, form)
 5. Gửi từng trận về Telegram (chat ID owner) với nút:
    - `🔄 Đổi HOT` — toggle, chưa đăng
-   - `✅ Đăng lên Slide` → tạo `match_insight` trên WordPress (lưu `matchDate` = giờ UTC thực tế)
+   - `✅ Đăng lên Slide` → tạo `match_insight` + ghi record `bd_prediction` (pending, có `match_id` + tỉ số dự đoán `predHome/predAway`) để theo dõi độ chính xác — fire-and-forget, không chặn đăng slide
    - `📝 Tạo bài nhận định` → kích hoạt Luồng 6
    - `⏭ Bỏ qua`
 
@@ -332,6 +332,14 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 - Insight thủ công (không có `match_date`) → xóa tay qua `/list`
 - Sau khi xóa → gửi thông báo về Telegram
 
+### Độ chính xác nhận định (đối chiếu — tự động)
+**Trigger:** Cron **10:00 sáng** giờ VN (hoặc lệnh `/settle`)
+1. `reconcilePredictions()` — lấy `bd_prediction` status `pending` (qua `wp.listPredictions`), lọc trận `match_date + 3h < now`
+2. Gom theo (giải, ngày) → fetch football-data `/competitions/{code}/matches?dateFrom=&dateTo=` (delay 7s/req) → tìm theo `match_id`
+3. Trận `FINISHED` → `gradePrediction()` (`lib/grade.js`): **1X2** (dấu tỉ số) + **tỉ số chính xác** → `wp.settlePrediction()` (status `settled`)
+4. Gửi Telegram: "Đã chấm N dự đoán — đúng X/N"
+- Data hiển thị: trang WP `/thanh-tich-du-doan/` + badge (đọc CPT `bd_prediction`). Trận hoãn/chưa xong → giữ `pending`.
+
 ### Lệnh quản lý
 | Lệnh | Chức năng |
 |------|-----------|
@@ -340,6 +348,7 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 | `/fetchnews` | Fetch tin tức mới từ RSS (kích hoạt thủ công) |
 | `/list` | Xem & xóa 10 insight đang hiển thị |
 | `/posts` | Xem & xóa 8 bài viết gần nhất |
+| `/settle` | Đối chiếu & chấm dự đoán ngay (thủ công) |
 | `/reload` | Tải lại danh mục từ WordPress |
 
 ### Ví dụ tin nhắn gửi lên bot
