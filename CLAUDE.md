@@ -69,7 +69,7 @@ wp/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
 │   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
-│   ├── single.php          # Bài viết đơn
+│   ├── single.php          # Bài viết đơn (+ mục lục TOC, author box, ngày cập nhật, bài liên quan)
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
 │   ├── page-bang-xep-hang.php # Trang BXH đầy đủ (?league=slug)
@@ -82,7 +82,8 @@ wp/
 │   ├── footer.php          # Footer
 │   ├── inc/
 │   │   ├── query.php       # WP_Query helpers (bd_category_posts, bd_hero, ...)
-│   │   └── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
+│   │   ├── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
+│   │   └── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
@@ -95,6 +96,8 @@ wp/
 │   │   ├── standings-table.php    # Bảng BXH đầy đủ (trang BXH)
 │   │   ├── fixtures-list.php      # Danh sách lịch/kết quả (trang lịch)
 │   │   ├── insight-card.php       # 1 card nhận định (dùng ở trang Nhận định)
+│   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
+│   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
