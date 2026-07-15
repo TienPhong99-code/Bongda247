@@ -62,6 +62,7 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
 
         <div class="flex items-center space-x-3">
           <?php if (is_user_logged_in()) : $bd_cu = wp_get_current_user(); ?>
+            <span class="hidden lg:flex items-center gap-1 text-sm text-brand font-semibold" title="Điểm">★ <span data-bd-points-balance><?php echo (int) bd_get_points($bd_cu->ID); ?></span></span>
             <div class="hidden lg:block relative group">
               <button type="button" class="flex items-center gap-1 text-sm font-medium text-secondary hover:text-brand transition-colors cursor-pointer">
                 <?php echo esc_html($bd_cu->display_name); ?>

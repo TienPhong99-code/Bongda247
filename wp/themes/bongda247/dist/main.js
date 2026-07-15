@@ -72,6 +72,62 @@
 
   // --- Swiper ---
   document.addEventListener("DOMContentLoaded", function () {
+    // --- Điểm: đọc + like ---
+    var bdPts = document.querySelector('[data-bd-points]');
+    if (bdPts) {
+      var bdAjax = bdPts.getAttribute('data-bd-ajax');
+      var bdNonce = bdPts.getAttribute('data-bd-nonce');
+      var bdPost = bdPts.getAttribute('data-bd-post');
+      var setBalance = function (p) {
+        var b = document.querySelector('[data-bd-points-balance]');
+        if (b && typeof p === 'number') b.textContent = p;
+      };
+      var bdSend = function (action, extra) {
+        var params = { action: action, post_id: bdPost, _wpnonce: bdNonce };
+        for (var k in (extra || {})) params[k] = extra[k];
+        return fetch(bdAjax, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(params),
+        }).then(function (r) { return r.json(); });
+      };
+      // Đọc: cuộn >=60% VÀ ở lại >=20s → cộng 1 lần
+      var readSent = false, maxScroll = 0, enoughTime = false;
+      var tryRead = function () {
+        if (readSent || !enoughTime || maxScroll < 60) return;
+        readSent = true;
+        bdSend('bd_award', { sub: 'read' }).then(function (res) {
+          if (res && res.success) setBalance(res.data.points);
+        }).catch(function () {});
+      };
+      setTimeout(function () { enoughTime = true; tryRead(); }, 20000);
+      window.addEventListener('scroll', function () {
+        var h = document.documentElement;
+        var pct = (h.scrollTop + window.innerHeight) / h.scrollHeight * 100;
+        if (pct > maxScroll) maxScroll = pct;
+        tryRead();
+      }, { passive: true });
+      // Like
+      var likeBtn = bdPts.querySelector('[data-bd-like]');
+      if (likeBtn) {
+        likeBtn.addEventListener('click', function () {
+          bdSend('bd_toggle_like').then(function (res) {
+            if (!res || !res.success) return;
+            var d = res.data;
+            likeBtn.setAttribute('aria-pressed', d.liked ? 'true' : 'false');
+            likeBtn.classList.toggle('text-brand', d.liked);
+            likeBtn.classList.toggle('border-brand', d.liked);
+            likeBtn.classList.toggle('text-secondary', !d.liked);
+            likeBtn.classList.toggle('border-card', !d.liked);
+            var c = likeBtn.querySelector('[data-bd-like-count]');
+            if (c) c.textContent = d.count;
+            setBalance(d.points);
+          }).catch(function () {});
+        });
+      }
+    }
+
     if (typeof Swiper === "undefined") return;
 
     if (document.querySelector(".hotSwiper")) {

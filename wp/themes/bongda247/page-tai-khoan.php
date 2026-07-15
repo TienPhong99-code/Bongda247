@@ -9,7 +9,7 @@
       <div class="font-hemi text-xl mb-3"><?php echo esc_html($bd_u->display_name); ?></div>
       <p class="text-sm text-secondary">Email: <?php echo esc_html($bd_u->user_email); ?></p>
       <p class="text-sm text-secondary">Tham gia: <?php echo esc_html(date_i18n('d/m/Y', strtotime($bd_u->user_registered))); ?></p>
-      <p class="text-sm text-secondary mt-2">Điểm: <span class="text-brand font-bold">— (sắp có)</span></p>
+      <p class="text-sm text-secondary mt-2">Điểm: <span class="text-brand font-bold"><?php echo (int) bd_get_points($bd_u->ID); ?></span></p>
       <a href="<?php echo esc_url(wp_logout_url(home_url('/'))); ?>" class="inline-block mt-4 text-sm text-brand hover:underline">Đăng xuất</a>
     </div>
   <?php else :

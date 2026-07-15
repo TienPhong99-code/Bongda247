@@ -79,6 +79,23 @@
         <?php endif; ?>
 
         <?php get_template_part('template-parts/author-box'); ?>
+
+        <?php if (is_user_logged_in()) :
+          $bd_pid   = get_the_ID();
+          $bd_liked = in_array($bd_pid, (array) get_user_meta(get_current_user_id(), 'bd_liked_posts', true), true);
+        ?>
+          <div data-bd-points data-bd-ajax="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" data-bd-nonce="<?php echo esc_attr(wp_create_nonce('bd_points')); ?>" data-bd-post="<?php echo esc_attr($bd_pid); ?>" class="mt-8 flex items-center gap-3">
+            <button data-bd-like type="button" aria-pressed="<?php echo $bd_liked ? 'true' : 'false'; ?>" class="flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors <?php echo $bd_liked ? 'text-brand border-brand' : 'text-secondary border-card hover:border-brand'; ?>">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.9-9.6-9.2C1 8.5 2.8 5.5 5.9 5.5c1.9 0 3.3 1 4.1 2.3C10.8 6.5 12.2 5.5 14.1 5.5c3.1 0 4.9 3 3.5 6.3C19.5 16.1 12 21 12 21z"/></svg>
+              <span data-bd-like-count><?php echo (int) get_post_meta($bd_pid, 'bd_like_count', true); ?></span>
+            </button>
+            <span class="text-xs text-secondary">Thích để +1 điểm</span>
+          </div>
+        <?php else : ?>
+          <div class="mt-8">
+            <a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="inline-flex items-center gap-2 rounded-full border border-card px-4 py-2 text-sm text-secondary hover:border-brand transition-colors">♥ Thích (đăng nhập để tích điểm)</a>
+          </div>
+        <?php endif; ?>
       </div>
     </article>
 
