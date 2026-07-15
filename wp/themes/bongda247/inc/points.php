@@ -20,7 +20,8 @@ function bd_award_points($uid, $action, $post_id) {
     }
     $post_id  = (int) $post_id;
     $meta_key = BD_DEDUP_META[$action];
-    $earned   = (array) get_user_meta($uid, $meta_key, true);
+    // array_filter bỏ chuỗi rỗng '' khi meta chưa tồn tại ((array)'' = ['']) — tránh meta bẩn.
+    $earned   = array_filter((array) get_user_meta($uid, $meta_key, true));
     if (in_array($post_id, $earned, true)) {
         return false;
     }
@@ -59,7 +60,7 @@ function bd_ajax_toggle_like() {
         wp_send_json_error('invalid', 400);
     }
     $uid       = get_current_user_id();
-    $liked     = (array) get_user_meta($uid, 'bd_liked_posts', true);
+    $liked     = array_filter((array) get_user_meta($uid, 'bd_liked_posts', true));
     $count     = (int) get_post_meta($post_id, 'bd_like_count', true);
     $now_liked = in_array($post_id, $liked, true);
 
