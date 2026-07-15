@@ -30,7 +30,5 @@ $bd_pred  = (string) get_post_meta($bd_id, 'prediction', true);
       </ul>
     <?php endif; ?>
   </div>
-  <?php if ($bd_pred) : ?>
-    <div class="inline-block mt-auto w-fit ml-auto text-sm transition-all p-2 px-4 rounded-full font-hemi bg-prediction"><?php echo esc_html($bd_pred); ?></div>
-  <?php endif; ?>
+  <?php echo bd_prediction_badge($bd_id, $bd_pred); ?>
 </div>

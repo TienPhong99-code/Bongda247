@@ -154,6 +154,34 @@
       }
     }
 
+    // --- Mở khóa dự đoán ---
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-bd-unlock]') : null;
+      if (!btn) return;
+      var ajax = btn.getAttribute('data-bd-ajax');
+      var nonce = btn.getAttribute('data-bd-nonce');
+      var iid = btn.getAttribute('data-bd-insight');
+      btn.disabled = true;
+      fetch(ajax, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'bd_unlock', insight_id: iid, _wpnonce: nonce }),
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res && res.success) {
+          var gate = btn.closest('[data-bd-pred-gate]');
+          if (gate) {
+            gate.innerHTML = '<div class="inline-block mt-auto w-fit ml-auto text-sm transition-all p-2 px-4 rounded-full font-hemi bg-prediction"></div>';
+            gate.querySelector('div').textContent = res.data.prediction;
+          }
+          var bal = document.querySelector('[data-bd-points-balance]');
+          if (bal) bal.textContent = res.data.points;
+        } else {
+          btn.textContent = 'Không đủ điểm';
+          btn.disabled = false;
+        }
+      }).catch(function () { btn.disabled = false; });
+    });
+
     if (typeof Swiper === "undefined") return;
 
     if (document.querySelector(".hotSwiper")) {

@@ -78,11 +78,7 @@ $rendered     = 0;
               <?php endif; ?>
             </div>
 
-            <?php if ($prediction) : ?>
-              <div class="inline-block mt-auto w-fit ml-auto text-sm transition-all p-2 px-4 rounded-full font-hemi bg-prediction">
-                <?php echo esc_html($prediction); ?>
-              </div>
-            <?php endif; ?>
+            <?php echo bd_prediction_badge($id, $prediction); ?>
           </div>
         </div>
       <?php endwhile; wp_reset_postdata(); ?>
