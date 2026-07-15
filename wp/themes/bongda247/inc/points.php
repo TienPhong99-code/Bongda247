@@ -124,6 +124,9 @@ function bd_ajax_unlock() {
     }
     $uid  = get_current_user_id();
     $pred = (string) get_post_meta($iid, 'prediction', true);
+    if ($pred === '') {
+        wp_send_json_error('invalid', 400); // không có gì để mở → không trừ điểm
+    }
 
     if (bd_is_unlocked($uid, $iid)) {
         wp_send_json_success(['points' => bd_get_points($uid), 'prediction' => $pred]);

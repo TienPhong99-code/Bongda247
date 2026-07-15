@@ -122,6 +122,29 @@ function bd_register_meta() {
 }
 
 /**
+ * Paywall (SP3): KHÔNG trả field `prediction` của match_insight qua REST cho user
+ * không có quyền sửa bài (khách + subscriber). Bot chạy role editor nên vẫn đọc/ghi
+ * bình thường (auth_callback bd_meta_auth gate GHI, filter này gate ĐỌC-response).
+ *
+ * Không có filter này thì dự đoán bị khóa vẫn lấy được trong 1 request
+ * GET /wp-json/wp/v2/match_insight → bypass hoàn toàn cơ chế mở khóa bằng điểm
+ * (inc/points.php bd_prediction_badge/bd_unlock). Frontend mở khóa qua AJAX bd_unlock
+ * + server-render bd_prediction_badge, KHÔNG qua REST — nên chặn REST không ảnh hưởng.
+ */
+add_filter('rest_prepare_match_insight', 'bd_hide_prediction_in_rest');
+function bd_hide_prediction_in_rest($response) {
+    if (current_user_can('edit_posts')) {
+        return $response; // bot/editor: giữ nguyên
+    }
+    if (isset($response->data['meta']) && is_array($response->data['meta'])
+        && array_key_exists('prediction', $response->data['meta'])) {
+        unset($response->data['meta']['prediction']);
+    }
+
+    return $response;
+}
+
+/**
  * Bảo mật: tước quyền unfiltered_html của user bot.
  *
  * Trên site single-site, role editor mặc định có capability unfiltered_html,

@@ -34,10 +34,9 @@ add_action('wp_head', function () {
         $graph['eventAttendanceMode'] = 'https://schema.org/OfflineEventAttendanceMode';
     }
 
-    $prediction = trim((string) get_post_meta($id, 'prediction', true));
-    if ($prediction !== '') {
-        $graph['description'] = $prediction;
-    }
+    // KHÔNG đưa `prediction` vào schema: đây là giá trị bị khóa (mở bằng điểm, xem SP3
+    // inc/points.php). Nếu để trong JSON-LD, khách xem-nguồn/curl hoặc Google index đều
+    // đọc được → bypass paywall. SportsEvent không cần dự đoán tỉ số.
 
     echo "\n<script type=\"application/ld+json\">"
         . wp_json_encode($graph, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
