@@ -90,7 +90,7 @@ wp/
 │   │   ├── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
 │   │   ├── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
 │   │   ├── auth.php        # Handler đăng ký/đăng nhập frontend (admin-post, engine WP) + ẩn admin bar cho reader
-│   │   └── points.php      # Ví điểm bd_award_points/bd_get_points + AJAX bd_award/bd_toggle_like (tích điểm đọc/like)
+│   │   └── points.php      # Ví điểm bd_award_points/bd_get_points + AJAX bd_award/bd_toggle_like (tích điểm đọc/like) + bd_spend_points/bd_is_unlocked/AJAX bd_unlock + bd_prediction_badge (mở khóa dự đoán 5đ)
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
@@ -135,7 +135,7 @@ wp/
 - `/ket-qua-bong-da/` — Kết quả bóng đá (trận FINISHED 5 giải, nhóm theo ngày)
 - `/nhan-dinh/` — Nhận định bóng đá (cards CPT match_insight sắp tới + bài phân tích tag `nhan-dinh`)
 - `/thanh-tich-du-doan/` — Thành tích dự đoán (% AI đúng 1X2 + tỉ số + bảng trận gần nhất; đọc CPT `bd_prediction`)
-- `/tai-khoan/` — Tài khoản: đăng nhập/đăng ký (engine auth WP, form qua `admin-post.php` action `bd_login`/`bd_register`) · hồ sơ khi đã đăng nhập. Role người dùng = `subscriber`. Header đổi trạng thái (Đăng nhập ↔ tên + dropdown). *(Giai đoạn 1 của hệ thống điểm — SP2 tích điểm, SP3 mở khóa dự đoán sẽ làm sau.)*
+- `/tai-khoan/` — Tài khoản: đăng nhập/đăng ký (engine auth WP, form qua `admin-post.php` action `bd_login`/`bd_register`) · hồ sơ khi đã đăng nhập. Role người dùng = `subscriber`. Header đổi trạng thái (Đăng nhập ↔ tên + dropdown). *(Giai đoạn 1 hoàn tất: SP1 tài khoản + SP2 tích điểm đọc/like/comment/share + SP3 mở khóa dự đoán bằng điểm.)*
 
 ### admin-ajax (theme)
 - `GET /wp-admin/admin-ajax.php?action=bd_fd_widget&league={slug}` — render lại body widget số liệu (BXH/Lịch/KQ) cho 1 giải; input `league` validate qua `BD_FD_LEAGUES` (sai → default `ngoai-hang-anh`). Dùng cho dropdown đổi giải trên trang chủ (không reload).
@@ -238,7 +238,7 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 ### match_insight (Custom Post Type — `mu-plugins/bongda247-core.php`)
 - `home_team`, `away_team`, `match_time` (string "HH:mm - DD/MM")
 - `match_date` (ISO UTC datetime) — dùng để auto-delete sau trận
-- `hot` (int 0/1), `insights` (array string), `prediction` (string)
+- `hot` (int 0/1), `insights` (array string), `prediction` (string — BỊ KHÓA ở frontend, mở khóa bằng 5 điểm, xem SP3 phần Hệ thống điểm)
 
 ### bd_prediction (Custom Post Type — `mu-plugins/bongda247-core.php`) — độ chính xác nhận định
 - **Lưu bền** (public=false, KHÔNG auto-delete như match_insight). Bot ghi qua REST (`rest_base=bd_prediction`).
@@ -249,11 +249,12 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 
 ### Hệ thống điểm (`inc/points.php`) — Giai đoạn 1 monetization
 - **User** frontend: role `subscriber`, đăng ký/đăng nhập qua `/tai-khoan/` (engine auth WP, `inc/auth.php`).
-- **Ví điểm** ở user meta: `bd_points` (int số dư); mảng dedup post IDs: `bd_read_posts`, `bd_liked_posts` (trạng thái like), `bd_like_awarded_posts` (đã cộng điểm like), `bd_share_posts`, `bd_comment_posts`. Post meta `bd_like_count` (int).
+- **Ví điểm** ở user meta: `bd_points` (int số dư); mảng dedup post IDs: `bd_read_posts`, `bd_liked_posts` (trạng thái like), `bd_like_awarded_posts` (đã cộng điểm like), `bd_share_posts`, `bd_comment_posts`; mảng match_insight đã mở khóa: `bd_unlocked_insights`. Post meta `bd_like_count` (int).
 - Bảng điểm: **Đọc 1 · Like 1 · Share 3 · Comment 5**. `bd_award_points($uid,$action,$post_id)` cộng + dedup 1 lần/(user,post,action). AJAX `bd_award` (sub=read/share) + `bd_toggle_like` (nonce `bd_points`, chỉ user đăng nhập, KHÔNG nopriv). Đọc = cuộn ≥60% + ≥20s (JS `src/main.js`). Un-like KHÔNG trừ điểm.
 - **Comment** (SP2.2): hook `comment_post` → cộng 5đ comment đầu/bài (user đăng nhập, `$approved===1`). `comments.php` render list+form. Cần 2 WP option: `comment_registration=1` (bắt đăng nhập) + **`comment_previously_approved=0`** (tự duyệt cả comment đầu → cộng điểm ngay, KHÔNG giữ chờ duyệt). WP flood-control tự chặn spam comment liên tiếp.
 - **Share** (SP2.3): 3 nút FB/X/Copy trong khối reactions single (chỉ user đăng nhập) → JS gọi `bd_award sub=share` → +3đ lần đầu/bài (dedup). Không backend mới (tái dùng bd_award). Không verify share thật (cộng theo click, cap 1 lần/bài).
-- **Đã làm:** SP1 (tài khoản) + SP2 đầy đủ (đọc/like/comment/share). **Chưa:** SP3 mở khóa dự đoán bằng điểm, nạp tiền.
+- **Mở khóa dự đoán** (SP3): dự đoán tỉ số của `match_insight` (meta `prediction`) bị KHÓA ở carousel trang chủ (`match-insights.php`) + trang `/nhan-dinh/` (`insight-card.php`) — cả 2 render qua helper `bd_prediction_badge($iid,$prediction)`. Chi phí `BD_UNLOCK_COST = 5` điểm/dự đoán, **mở 1 lần xem mãi** (user meta `bd_unlocked_insights`). `bd_spend_points($uid,$amount)` (kiểm số dư server-side) + `bd_is_unlocked($uid,$iid)`. AJAX `bd_unlock` (nonce `bd_points`, chỉ user đăng nhập, KHÔNG nopriv; validate post_type=match_insight; **ghi unlocked TRƯỚC, trừ điểm SAU** để lỗi ghi meta không thiệt user; thiếu điểm → error `nopoints` 402 KHÔNG trừ; đã mở → idempotent trả prediction). **Paywall:** giá trị `prediction` KHÔNG có trong HTML khi chưa mở (server chỉ trả qua AJAX); JS reveal dùng `textContent` (chống XSS). Khách → link `/tai-khoan/`.
+- **Đã làm:** SP1 (tài khoản) + SP2 đầy đủ (đọc/like/comment/share) + SP3 (mở khóa dự đoán) → **HOÀN TẤT Giai đoạn 1**. **Chưa:** Giai đoạn 2 = nạp tiền (cần pháp lý/ĐKKD/cổng thanh toán).
 
 ---
 
