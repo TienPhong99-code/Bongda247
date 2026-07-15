@@ -52,6 +52,7 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
             <li><a href="<?php echo esc_url(home_url('/bang-xep-hang/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">BXH</a></li>
             <li><a href="<?php echo esc_url(home_url('/lich-thi-dau/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Lịch</a></li>
             <li><a href="<?php echo esc_url(home_url('/ket-qua-bong-da/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Kết quả</a></li>
+            <li><a href="<?php echo esc_url(home_url('/nhan-dinh/')); ?>" class="text-sm font-medium uppercase tracking-wide transition-colors text-secondary hover:text-brand">Nhận định</a></li>
         </ul>
 
         <div class="flex items-center space-x-3">
@@ -91,6 +92,7 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
             <li><a href="<?php echo esc_url(home_url('/bang-xep-hang/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">BXH</a></li>
             <li><a href="<?php echo esc_url(home_url('/lich-thi-dau/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Lịch</a></li>
             <li><a href="<?php echo esc_url(home_url('/ket-qua-bong-da/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Kết quả</a></li>
+            <li><a href="<?php echo esc_url(home_url('/nhan-dinh/')); ?>" class="block py-2 text-sm font-medium uppercase tracking-wide text-secondary hover:text-brand">Nhận định</a></li>
           <?php
           $bd_any_page = false;
           foreach ($bd_menu_pages as $bd_s => $bd_l) { if (get_page_by_path($bd_s)) { $bd_any_page = true; break; } }
