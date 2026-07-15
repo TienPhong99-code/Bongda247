@@ -411,7 +411,16 @@ wp option update rank_math_wizard_completed 1                                   
 wp option update rank_math_registration_skip 1
 wp rewrite flush                                                                            # để /sitemap_index.xml hoạt động
 ```
-Kết quả: post có NewsArticle+BreadcrumbList+Organization+Person; home có Organization+WebSite+SearchAction; sitemap 4 mục (post/page/match_insight/category). **Còn thiếu:** upload logo PNG → Rank Math → Titles & Meta → Local SEO → Logo (WP chặn SVG; `publisher.logo` cần cho Article rich result).
+Kết quả: post có NewsArticle+BreadcrumbList+Organization+Person; home có Organization+WebSite+SearchAction; sitemap 4 mục (post/page/match_insight/category).
+
+**Logo Organization** (`publisher.logo` — Google cần cho Article rich result): WP chặn SVG nên convert `logo247.svg`→PNG rồi import + gán (dùng `patch insert` vì key chưa tồn tại):
+```bash
+qlmanage -t -s 512 -o /tmp/lo ~/Downloads/logo247.svg && cp /tmp/lo/logo247.svg.png /tmp/lo/logo247.png
+ID=$(wp media import /tmp/lo/logo247.png --title="Bongda247 Logo" --porcelain)
+URL=$(wp eval "echo wp_get_attachment_url($ID);")
+wp option patch insert rank-math-options-titles knowledgegraph_logo "$URL"
+wp option patch insert rank-math-options-titles knowledgegraph_logo_id "$ID"
+```
 
 ### Bot (`bot-press.js`) — Railway
 - **URL:** railway.app, project Bongda247
