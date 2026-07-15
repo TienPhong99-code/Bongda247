@@ -1,6 +1,11 @@
 <?php
 defined('ABSPATH') || exit;
 
+// Ẩn thanh admin bar WordPress với người đọc (dưới quyền editor) — trải nghiệm frontend sạch.
+add_filter('show_admin_bar', function ($show) {
+    return current_user_can('edit_posts') ? $show : false;
+});
+
 /** Redirect về trang tài khoản, kèm mã lỗi nếu có. */
 function bd_auth_redirect($error = '') {
     $url = home_url('/tai-khoan/');
