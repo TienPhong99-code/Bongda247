@@ -236,6 +236,54 @@ export async function ensureCategory(slug, name) {
   return res.data.id;
 }
 
+/** Ghi 1 dự đoán (status=pending). Dedup theo match_id — trùng thì bỏ. */
+export async function createPrediction({ matchId, home, away, leagueCode, matchDate, predHome, predAway, predText }) {
+  const pending = await listPredictions({ status: "pending" });
+  if (pending.some((p) => Number(p.match_id) === Number(matchId))) {
+    return { skipped: true };
+  }
+  const res = await api.post("/bd_prediction", {
+    title: `${home} vs ${away}`,
+    status: "publish",
+    meta: {
+      match_id: matchId,
+      home_team: home,
+      away_team: away,
+      league_code: leagueCode || "",
+      match_date: matchDate || "",
+      pred_home: predHome,
+      pred_away: predAway,
+      pred_text: predText || "",
+      status: "pending",
+    },
+  });
+  return { id: res.data.id };
+}
+
+/** Danh sách dự đoán (kèm meta). Lọc client-side theo meta status nếu truyền. */
+export async function listPredictions({ status } = {}) {
+  const res = await api.get("/bd_prediction", {
+    params: { per_page: 100, orderby: "date", order: "desc", status: "publish" },
+  });
+  const rows = res.data.map((p) => ({ id: p.id, ...p.meta }));
+  return status ? rows.filter((r) => r.status === status) : rows;
+}
+
+/** Cập nhật 1 dự đoán thành settled + kết quả chấm. */
+export async function settlePrediction(id, { actualHome, actualAway, outcomeCorrect, scoreCorrect }) {
+  await api.post(`/bd_prediction/${id}`, {
+    meta: {
+      status: "settled",
+      actual_home: actualHome,
+      actual_away: actualAway,
+      outcome_correct: outcomeCorrect,
+      score_correct: scoreCorrect,
+      settled_at: new Date().toISOString(),
+    },
+  });
+  return { id };
+}
+
 /**
  * Tạo hoặc cập nhật một WordPress Page theo slug (idempotent). Dùng cho seed trang tĩnh.
  * Trả về { id, link }. Nội dung HTML phải hợp lệ KSES (h2/h3/p/ul/li/a/strong...) vì
