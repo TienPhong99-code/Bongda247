@@ -66,11 +66,15 @@ if ($bd_upcoming) : ?>
           <a href="<?php echo esc_url(home_url('/nhan-dinh/')); ?>" class="block rounded-lg border border-card bg-card p-3 hover:border-brand transition-colors">
             <div class="text-xs text-secondary mb-1.5"><?php echo esc_html($bd_m['time']); ?></div>
             <div class="flex items-center gap-2 text-sm font-medium">
-              <?php if (!empty($bd_hl['crest'])) : ?><img src="<?php echo esc_url($bd_hl['crest']); ?>" alt="" class="w-5 h-5 object-contain shrink-0"><?php endif; ?>
-              <span class="flex-1 truncate"><?php echo esc_html($bd_m['home']); ?></span>
-              <span class="text-xs text-secondary">vs</span>
-              <?php if (!empty($bd_al['crest'])) : ?><img src="<?php echo esc_url($bd_al['crest']); ?>" alt="" class="w-5 h-5 object-contain shrink-0"><?php endif; ?>
-              <span class="flex-1 truncate text-right"><?php echo esc_html($bd_m['away']); ?></span>
+              <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                <?php if (!empty($bd_hl['crest'])) : ?><img src="<?php echo esc_url($bd_hl['crest']); ?>" alt="" class="w-5 h-5 object-contain shrink-0"><?php endif; ?>
+                <span class="truncate"><?php echo esc_html($bd_m['home']); ?></span>
+              </div>
+              <span class="text-xs text-secondary shrink-0">vs</span>
+              <div class="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                <span class="truncate"><?php echo esc_html($bd_m['away']); ?></span>
+                <?php if (!empty($bd_al['crest'])) : ?><img src="<?php echo esc_url($bd_al['crest']); ?>" alt="" class="w-5 h-5 object-contain shrink-0"><?php endif; ?>
+              </div>
             </div>
           </a>
         </li>
