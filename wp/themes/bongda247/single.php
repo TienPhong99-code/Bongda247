@@ -6,6 +6,8 @@
       $cat  = $cats[0] ?? null;
       $tags = get_the_tags();
   ?>
+    <div class="row">
+      <div class="col col-8">
     <article>
       <nav class="flex text-sm mb-8 gap-2 font-medium text-secondary">
         <a href="<?php echo esc_url(home_url('/')); ?>" class="transition-colors hover:text-brand">Trang chủ</a>
@@ -111,8 +113,17 @@
       </div>
     </article>
 
+        <?php comments_template(); ?>
+      </div>
+
+      <div class="col col-4">
+        <aside class="lg:sticky lg:top-24 space-y-6">
+          <?php get_template_part('template-parts/single-sidebar'); ?>
+        </aside>
+      </div>
+    </div>
+
     <?php get_template_part('template-parts/related-posts'); ?>
-    <?php comments_template(); ?>
   <?php endwhile; ?>
 </div>
 
