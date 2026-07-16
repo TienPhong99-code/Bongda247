@@ -191,8 +191,9 @@ PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 ## Thiết kế & Giao diện
 
 ### Màu sắc
-- Brand primary: `#0232ff` (xanh dương)
-- Accent: `#dc2626` (đỏ)
+- **Brand primary (trắng-đen): `--color-brand`** = `#0e1217` (light, gần-đen) / `#f3f3f3` (dark, gần-trắng) — override trong `.dark`. (*Trước đây xanh dương `#0232ff`; đổi sang trắng-đen tối giản.*)
+- **`--color-on-brand`** = `#ffffff` (light) / `#0e1217` (dark) — màu chữ/icon trên nền `bg-brand`; utility `text-on-brand`. BẮT BUỘC dùng `bg-brand text-on-brand` (KHÔNG `text-white`) cho nút đặc, nếu không dark mode sẽ trắng-trên-trắng. JS toggle tab fd-widget cũng dùng `text-on-brand`.
+- Accent: `#dc2626` (đỏ) — giữ cho marker hot/flame (chức năng).
 - Background (light): `#f3f3f3` | (dark): `#0e1217`
 - Card (light): `#f5f8fc` | (dark): `#1c1f26`
 
