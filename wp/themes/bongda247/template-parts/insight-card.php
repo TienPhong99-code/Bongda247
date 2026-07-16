@@ -13,11 +13,23 @@ $bd_pred  = (string) get_post_meta($bd_id, 'prediction', true);
 <div class="group flex gap-4 rounded-lg bg-card p-3 border border-card flex-col h-full">
   <div>
     <div class="flex justify-between items-center mb-4">
-      <span class="text-secondary text-sm font-medium"><?php echo esc_html($bd_time); ?></span>
-      <?php if ($bd_hot) : ?><img src="<?php echo esc_url($bd_flame); ?>" alt="Hot" width="20" height="20"><?php endif; ?>
+      <span class="text-secondary text-sm font-medium inline-flex items-center gap-1.5">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 7v5l3 3"/></svg>
+        <?php echo esc_html($bd_time); ?>
+      </span>
+      <div class="flex items-center gap-2">
+        <?php $bd_emblem = bd_insight_league_emblem($bd_home, $bd_away); if ($bd_emblem) : ?>
+          <img src="<?php echo esc_url($bd_emblem); ?>" alt="" width="20" height="20" class="w-5 h-5 object-contain" loading="lazy" decoding="async">
+        <?php endif; ?>
+        <?php if ($bd_hot) : ?><img src="<?php echo esc_url($bd_flame); ?>" alt="Hot" width="20" height="20"><?php endif; ?>
+      </div>
     </div>
     <div class="mb-4">
-      <h3 class="font-hemi text-xl flex items-center gap-3"><?php echo esc_html($bd_home); ?> <span>VS</span> <?php echo esc_html($bd_away); ?></h3>
+      <h3 class="font-hemi text-lg flex items-center gap-2 flex-wrap">
+        <?php echo bd_insight_team_badge($bd_home); ?>
+        <span class="text-secondary text-sm">VS</span>
+        <?php echo bd_insight_team_badge($bd_away); ?>
+      </h3>
     </div>
     <?php if ($bd_lines) : ?>
       <ul class="space-y-4 mb-2">

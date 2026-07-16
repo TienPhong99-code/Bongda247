@@ -204,3 +204,83 @@ function bd_fd_results_by_date($days = 7) {
     }
     return $out;
 }
+
+// ─── Logo đội/giải cho card nhận định (khớp tên qua BXH 5 giải) ─────────────
+
+/** Chuẩn hoá tên đội để khớp giữa insight (chữ tự do) và football-data. */
+function bd_fd_norm_team($name) {
+    $s = function_exists('remove_accents') ? remove_accents((string) $name) : (string) $name;
+    $s = strtolower($s);
+    // bỏ hậu tố/tiền tố CLB phổ biến để "Arsenal" khớp "Arsenal FC"
+    $s = preg_replace('/\b(fc|cf|afc|sc|ac|as|cd|ssc|rc|us|ss|bsc|vfl|vfb|tsg|fk|club)\b/', ' ', $s);
+    return preg_replace('/[^a-z0-9]+/', '', $s);
+}
+
+/**
+ * Logo đội + giải cho 1 tên đội, khớp qua BXH 5 giải (cache sẵn). KHỚP CHÍNH XÁC
+ * theo tên chuẩn hoá (không khớp mờ → tránh gắn nhầm logo). Trả
+ * ['crest'=>url,'league_code'=>code,'league_emblem'=>url] hoặc [] nếu không khớp.
+ */
+function bd_insight_team_logo($name) {
+    static $map = null;
+    if ($map === null) {
+        $map = [];
+        foreach (BD_FD_LEAGUES as $info) {
+            foreach (bd_fd_standings($info['code']) as $row) {
+                $k = bd_fd_norm_team($row['name']);
+                if ($k !== '' && !isset($map[$k]) && !empty($row['crest'])) {
+                    $map[$k] = ['crest' => $row['crest'], 'league_code' => $info['code']];
+                }
+            }
+        }
+    }
+    // Alias tên rút gọn (bot/Gemini hay dùng) → tên chuẩn hoá của football-data.
+    static $alias = [
+        'mancity' => 'manchestercity',
+        'manutd' => 'manchesterunited', 'manunited' => 'manchesterunited', 'mu' => 'manchesterunited',
+        'newcastle' => 'newcastleunited', 'leeds' => 'leedsunited',
+        'spurs' => 'tottenhamhotspur', 'tottenham' => 'tottenhamhotspur',
+        'wolves' => 'wolverhamptonwanderers',
+        'bayern' => 'bayernmunchen', 'bayernmunich' => 'bayernmunchen',
+        'leverkusen' => 'bayer04leverkusen', 'dortmund' => 'borussiadortmund', 'bvb' => 'borussiadortmund',
+        'gladbach' => 'borussiamonchengladbach',
+        'inter' => 'internazionalemilano', 'intermilan' => 'internazionalemilano',
+        'juve' => 'juventus',
+        'atletico' => 'atleticodemadrid', 'atleticomadrid' => 'atleticodemadrid', 'atleti' => 'atleticodemadrid',
+        'psg' => 'parissaintgermain', 'parissg' => 'parissaintgermain',
+        'barca' => 'barcelona', 'sociedad' => 'realsociedad',
+    ];
+    $k = bd_fd_norm_team($name);
+    if ($k === '') {
+        return [];
+    }
+    $key = isset($map[$k]) ? $k : ($alias[$k] ?? null);
+    if ($key === null || !isset($map[$key])) {
+        return [];
+    }
+    $hit = $map[$key];
+    $hit['league_emblem'] = 'https://crests.football-data.org/' . $hit['league_code'] . '.png';
+    return $hit;
+}
+
+/** HTML tên đội kèm logo (nếu khớp). Escape đầy đủ. */
+function bd_insight_team_badge($name) {
+    $logo = bd_insight_team_logo($name);
+    $out  = '<span class="inline-flex items-center gap-1.5 min-w-0">';
+    if (!empty($logo['crest'])) {
+        $out .= '<img src="' . esc_url($logo['crest']) . '" alt="" width="24" height="24" class="w-6 h-6 object-contain shrink-0" loading="lazy" decoding="async">';
+    }
+    $out .= '<span class="truncate">' . esc_html($name) . '</span></span>';
+    return $out;
+}
+
+/** Emblem giải của card (lấy từ đội nào khớp trước). '' nếu không đội nào khớp. */
+function bd_insight_league_emblem($home, $away) {
+    foreach ([$home, $away] as $n) {
+        $l = bd_insight_team_logo($n);
+        if (!empty($l['league_emblem'])) {
+            return $l['league_emblem'];
+        }
+    }
+    return '';
+}
