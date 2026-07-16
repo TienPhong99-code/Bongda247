@@ -109,6 +109,7 @@ wp/
 │   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
 │   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
 │   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương kim loại SVG gradient theo hạng; icon Tabler Icons MIT nhúng thẳng — không runtime/CDN)
+│   │   ├── sidebar-nav.php        # Sidebar điều hướng dashboard (desktop lg+): nav nhanh + active-state + khối tài khoản (điểm/streak); icon Tabler MIT
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
@@ -202,6 +203,11 @@ PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 ### Theme
 - Dark/Light mode toggle, lưu vào `localStorage`
 - Mobile-first responsive design
+
+### Layout (dashboard)
+- **Header chính** giữ trên đầu (`header.php`, `fixed top-0 w-full`, h-16) — full-width mọi breakpoint.
+- **Sidebar điều hướng** cố định trái, **chỉ desktop (`lg+`, `hidden lg:flex`)**: `template-parts/sidebar-nav.php`, `fixed left-0 top-16 bottom-0 w-60`. Nav nhanh (6 mục, active-state `is_page()/is_front_page()`) + khối tài khoản (điểm/streak khi đăng nhập, CTA đăng nhập khi khách).
+- **Content + footer** dời phải `lg:ml-60` (desktop). **Mobile:** sidebar ẩn → content full-width, điều hướng qua hamburger menu của header (không đổi). Template nội dung KHÔNG đụng — tự dời theo offset.
 
 ---
 
