@@ -4,7 +4,7 @@
 <footer class="border-t border-card py-10 lg:ml-60 mb-16 lg:mb-0">
   <div class="container">
     <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-      <img src="<?php echo esc_url(get_stylesheet_directory_uri() . '/assets/logo247.svg'); ?>" alt="Bongda247" width="69" height="40" class="bd-logo h-10 w-auto">
+      <img src="<?php echo esc_url(get_stylesheet_directory_uri() . '/assets/logo247.svg'); ?>" alt="Bongda247" width="97" height="56" class="bd-logo h-14 w-auto">
 
 
       <nav class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-secondary">
