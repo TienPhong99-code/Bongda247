@@ -70,6 +70,24 @@
     });
   });
 
+  // --- Trang tài khoản: tab Đăng nhập / Đăng ký ---
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("[data-bd-auth-btn]") : null;
+    if (!btn) return;
+    var wrap = btn.closest("[data-bd-auth-tabs]");
+    if (!wrap) return;
+    var name = btn.getAttribute("data-bd-auth-btn");
+    wrap.querySelectorAll("[data-bd-auth-btn]").forEach(function (b) {
+      var active = b === btn;
+      b.classList.toggle("bg-brand", active);
+      b.classList.toggle("text-on-brand", active);
+      b.classList.toggle("text-secondary", !active);
+    });
+    wrap.querySelectorAll("[data-bd-auth-panel]").forEach(function (p) {
+      p.classList.toggle("hidden", p.getAttribute("data-bd-auth-panel") !== name);
+    });
+  });
+
   // --- Swiper ---
   document.addEventListener("DOMContentLoaded", function () {
     // --- Điểm: đọc + like ---

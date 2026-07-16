@@ -54,33 +54,44 @@
       'regfail'     => 'Đăng ký không thành công, vui lòng thử lại.',
       'login'       => 'Email hoặc mật khẩu không đúng.',
     ];
+    // Tab mặc định: lỗi thuộc đăng ký → mở tab Đăng ký, còn lại → Đăng nhập.
+    $bd_tab = in_array($bd_err, ['email', 'weakpass', 'emailexists', 'regfail'], true) ? 'register' : 'login';
   ?>
-    <?php if ($bd_err && isset($bd_msgs[$bd_err])) : ?>
-      <div class="max-w-3xl rounded-lg border border-red-500/40 bg-red-500/10 text-red-500 px-4 py-3 mb-6 text-sm"><?php echo esc_html($bd_msgs[$bd_err]); ?></div>
-    <?php endif; ?>
-    <div class="grid md:grid-cols-2 gap-6 max-w-3xl">
-      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rounded-2xl border border-card bg-card p-6">
-        <h2 class="font-hemi text-lg uppercase mb-4">Đăng nhập</h2>
-        <input type="hidden" name="action" value="bd_login">
-        <?php wp_nonce_field('bd_login'); ?>
-        <label class="block text-sm text-secondary mb-1">Email hoặc tên đăng nhập</label>
-        <input type="text" name="login" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
-        <label class="block text-sm text-secondary mb-1">Mật khẩu</label>
-        <input type="password" name="password" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-4 text-sm focus:outline-none focus:border-brand">
-        <button type="submit" class="w-full rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng nhập</button>
-      </form>
-      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rounded-2xl border border-card bg-card p-6">
-        <h2 class="font-hemi text-lg uppercase mb-4">Đăng ký</h2>
-        <input type="hidden" name="action" value="bd_register">
-        <?php wp_nonce_field('bd_register'); ?>
-        <label class="block text-sm text-secondary mb-1">Tên hiển thị</label>
-        <input type="text" name="display_name" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
-        <label class="block text-sm text-secondary mb-1">Email</label>
-        <input type="email" name="email" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
-        <label class="block text-sm text-secondary mb-1">Mật khẩu (≥ 8 ký tự)</label>
-        <input type="password" name="password" required minlength="8" class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-4 text-sm focus:outline-none focus:border-brand">
-        <button type="submit" class="w-full rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng ký</button>
-      </form>
+    <div class="max-w-md rounded-2xl border border-card bg-card p-6" data-bd-auth-tabs>
+      <?php if ($bd_err && isset($bd_msgs[$bd_err])) : ?>
+        <div class="rounded-lg border border-red-500/40 bg-red-500/10 text-red-500 px-4 py-3 mb-4 text-sm"><?php echo esc_html($bd_msgs[$bd_err]); ?></div>
+      <?php endif; ?>
+
+      <div class="flex rounded-lg border border-card overflow-hidden mb-5">
+        <button type="button" data-bd-auth-btn="login" class="flex-1 py-2.5 text-sm font-medium transition-colors <?php echo $bd_tab === 'login' ? 'bg-brand text-on-brand' : 'text-secondary hover:text-brand'; ?>">Đăng nhập</button>
+        <button type="button" data-bd-auth-btn="register" class="flex-1 py-2.5 text-sm font-medium transition-colors <?php echo $bd_tab === 'register' ? 'bg-brand text-on-brand' : 'text-secondary hover:text-brand'; ?>">Đăng ký</button>
+      </div>
+
+      <div data-bd-auth-panel="login" class="<?php echo $bd_tab === 'login' ? '' : 'hidden'; ?>">
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+          <input type="hidden" name="action" value="bd_login">
+          <?php wp_nonce_field('bd_login'); ?>
+          <label class="block text-sm text-secondary mb-1">Email hoặc tên đăng nhập</label>
+          <input type="text" name="login" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
+          <label class="block text-sm text-secondary mb-1">Mật khẩu</label>
+          <input type="password" name="password" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-4 text-sm focus:outline-none focus:border-brand">
+          <button type="submit" class="w-full rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng nhập</button>
+        </form>
+      </div>
+
+      <div data-bd-auth-panel="register" class="<?php echo $bd_tab === 'register' ? '' : 'hidden'; ?>">
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+          <input type="hidden" name="action" value="bd_register">
+          <?php wp_nonce_field('bd_register'); ?>
+          <label class="block text-sm text-secondary mb-1">Tên hiển thị</label>
+          <input type="text" name="display_name" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
+          <label class="block text-sm text-secondary mb-1">Email</label>
+          <input type="email" name="email" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
+          <label class="block text-sm text-secondary mb-1">Mật khẩu (≥ 8 ký tự)</label>
+          <input type="password" name="password" required minlength="8" class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-4 text-sm focus:outline-none focus:border-brand">
+          <button type="submit" class="w-full rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng ký</button>
+        </form>
+      </div>
     </div>
   <?php endif; ?>
 </div>
