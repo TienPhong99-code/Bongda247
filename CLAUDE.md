@@ -108,7 +108,7 @@ wp/
 │   │   ├── prediction-badge.php   # Badge "AI dự đoán đúng X%" (link trang thành tích)
 │   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
 │   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
-│   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương gradient theo hạng)
+│   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương kim loại SVG gradient theo hạng; icon Tabler Icons MIT nhúng thẳng — không runtime/CDN)
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
