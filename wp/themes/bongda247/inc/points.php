@@ -13,6 +13,27 @@ function bd_get_points($uid) {
     return (int) get_user_meta($uid, 'bd_points', true);
 }
 
+/**
+ * Cửa cộng điểm DUY NHẤT: cộng bd_points và bơm bd_points_week (điểm kiếm trong tuần
+ * ISO, lazy-reset khi sang tuần mới). Mọi nguồn cộng điểm (award action, điểm danh,
+ * nhiệm vụ) đi qua đây để bảng xếp hạng tuần đồng bộ. Tiêu điểm (bd_spend_points) KHÔNG gọi.
+ */
+function bd_credit_points($uid, $amount) {
+    $amount = (int) $amount;
+    if ($amount <= 0) {
+        return bd_get_points($uid);
+    }
+    $wk = current_time('o-\WW'); // VD 2026-W29
+    if ((string) get_user_meta($uid, 'bd_week_id', true) !== $wk) {
+        update_user_meta($uid, 'bd_week_id', $wk);
+        update_user_meta($uid, 'bd_points_week', 0);
+    }
+    update_user_meta($uid, 'bd_points_week', (int) get_user_meta($uid, 'bd_points_week', true) + $amount);
+    $total = bd_get_points($uid) + $amount;
+    update_user_meta($uid, 'bd_points', $total);
+    return $total;
+}
+
 /** Cộng điểm 1 hành động cho 1 bài (dedup). true nếu vừa cộng, false nếu đã earn / hành động lạ. */
 function bd_award_points($uid, $action, $post_id) {
     if (!isset(BD_POINTS[$action])) {
@@ -27,7 +48,7 @@ function bd_award_points($uid, $action, $post_id) {
     }
     $earned[] = $post_id;
     update_user_meta($uid, $meta_key, $earned);
-    update_user_meta($uid, 'bd_points', bd_get_points($uid) + BD_POINTS[$action]);
+    bd_credit_points($uid, BD_POINTS[$action]);
     return true;
 }
 
