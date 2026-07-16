@@ -83,3 +83,43 @@ function bd_quest_bump($uid, $type) {
     }
     return ['completed' => false, 'reward' => 0];
 }
+
+// ─── Huy hiệu (suy ra từ chỉ số, không lưu state) ──────────────────────────
+// tier ∈ bronze|silver|gold|brand ; metric ∈ points|streak|read|comment|unlock
+const BD_BADGES = [
+    ['id'=>'rookie',    'name'=>'Người mới',     'desc'=>'Đạt 100 điểm',       'icon'=>'🥉','tier'=>'bronze','metric'=>'points', 'need'=>100],
+    ['id'=>'pro',       'name'=>'Cao thủ',       'desc'=>'Đạt 500 điểm',       'icon'=>'🥈','tier'=>'silver','metric'=>'points', 'need'=>500],
+    ['id'=>'legend',    'name'=>'Huyền thoại',   'desc'=>'Đạt 2000 điểm',      'icon'=>'🥇','tier'=>'gold',  'metric'=>'points', 'need'=>2000],
+    ['id'=>'diligent',  'name'=>'Chuyên cần',    'desc'=>'Streak 7 ngày',      'icon'=>'🔥','tier'=>'bronze','metric'=>'streak', 'need'=>7],
+    ['id'=>'steadfast', 'name'=>'Kiên định',     'desc'=>'Streak 30 ngày',     'icon'=>'💎','tier'=>'gold',  'metric'=>'streak', 'need'=>30],
+    ['id'=>'reader',    'name'=>'Mọt tin',       'desc'=>'Đọc 50 bài',         'icon'=>'📰','tier'=>'silver','metric'=>'read',   'need'=>50],
+    ['id'=>'talker',    'name'=>'Nhà bình luận', 'desc'=>'Bình luận 20 bài',   'icon'=>'💬','tier'=>'silver','metric'=>'comment','need'=>20],
+    ['id'=>'oracle',    'name'=>'Nhà tiên tri',  'desc'=>'Mở khóa 20 dự đoán', 'icon'=>'🔮','tier'=>'gold',  'metric'=>'unlock', 'need'=>20],
+];
+
+function bd_badge_metric($uid, $metric) {
+    switch ($metric) {
+        case 'points':  return bd_get_points($uid);
+        case 'streak':  return (int) get_user_meta($uid, 'bd_streak_best', true);
+        case 'read':    return count(array_filter((array) get_user_meta($uid, 'bd_read_posts', true)));
+        case 'comment': return count(array_filter((array) get_user_meta($uid, 'bd_comment_posts', true)));
+        case 'unlock':  return count(array_filter((array) get_user_meta($uid, 'bd_unlocked_insights', true)));
+    }
+    return 0;
+}
+
+/** Thứ hạng tier để chọn huy hiệu "cao nhất". */
+function bd_badge_tier_rank($tier) {
+    $rank = ['bronze' => 1, 'silver' => 2, 'gold' => 3, 'brand' => 3];
+    return $rank[$tier] ?? 0;
+}
+
+/** Tất cả huy hiệu + earned (bool). Không lưu meta. */
+function bd_user_badges($uid) {
+    $out = [];
+    foreach (BD_BADGES as $b) {
+        $b['earned'] = bd_badge_metric($uid, $b['metric']) >= $b['need'];
+        $out[] = $b;
+    }
+    return $out;
+}
