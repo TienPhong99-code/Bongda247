@@ -204,6 +204,7 @@ PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 
 ### Logo
 - Header + footer dùng **`assets/logo247.svg`** (artwork "247 BONG DA", đã tách nền đen + siết viewBox). Là `<img class="bd-logo">`. Artwork trắng → light mode CSS `invert` thành đen, dark mode giữ trắng (`.bd-logo` / `.dark .bd-logo` trong main.css). Thay wordmark chữ "BONGDA247" cũ.
+- **Favicon:** `assets/favicon.png` (512, "247 BONG DA" trắng trên nền đen) + `favicon-180.png` (apple-touch) + `favicon-32.png`. Nhúng link qua `functions.php` hook `wp_head` (in-git, KHÔNG dùng WP Site Icon trong DB → chạy ngay trên production).
 
 ### Theme
 - Dark/Light mode toggle, lưu vào `localStorage`
