@@ -19,7 +19,7 @@ $bd_posts = $bd_q->posts;
   <?php foreach ($bd_posts as $bd_p) : ?>
     <a href="<?php echo esc_url(get_permalink($bd_p)); ?>" class="block group">
       <?php if (has_post_thumbnail($bd_p)) : ?>
-        <div class="rounded-2xl overflow-hidden border border-card mb-3 aspect-video">
+        <div class="rounded-lg overflow-hidden border border-card mb-3 aspect-video">
           <?php echo get_the_post_thumbnail($bd_p, 'bd_hero', ['class' => 'w-full h-full object-cover transition-transform group-hover:scale-105', 'alt' => esc_attr(get_the_title($bd_p))]); ?>
         </div>
       <?php endif; ?>

@@ -18,7 +18,7 @@ if (!$bd_rel->post_count) return;
     <?php while ($bd_rel->have_posts()) : $bd_rel->the_post(); ?>
       <a href="<?php echo esc_url(get_permalink()); ?>" class="block group">
         <?php if (has_post_thumbnail()) : ?>
-          <div class="rounded-2xl overflow-hidden border border-card mb-3 aspect-video">
+          <div class="rounded-lg overflow-hidden border border-card mb-3 aspect-video">
             <?php the_post_thumbnail('bd_hero', ['class' => 'w-full h-full object-cover transition-transform group-hover:scale-105', 'alt' => the_title_attribute(['echo' => false])]); ?>
           </div>
         <?php endif; ?>
