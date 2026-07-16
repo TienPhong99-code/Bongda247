@@ -200,7 +200,10 @@ PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 ### Font chữ
 - **Inter** — body text
 - **Oswald** — headings
-- **SVN-Hemi Head** — branding/titles
+- **SVN-Hemi Head** — titles
+
+### Logo
+- Header + footer dùng **`assets/logo247.svg`** (artwork "247 BONG DA", đã tách nền đen + siết viewBox). Là `<img class="bd-logo">`. Artwork trắng → light mode CSS `invert` thành đen, dark mode giữ trắng (`.bd-logo` / `.dark .bd-logo` trong main.css). Thay wordmark chữ "BONGDA247" cũ.
 
 ### Theme
 - Dark/Light mode toggle, lưu vào `localStorage`
