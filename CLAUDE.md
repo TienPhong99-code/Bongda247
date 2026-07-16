@@ -108,7 +108,7 @@ wp/
 │   │   ├── prediction-badge.php   # Badge "AI dự đoán đúng X%" (link trang thành tích)
 │   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
 │   │   ├── related-posts.php      # Bài viết liên quan (Swiper slider, 10 bài cùng category, full-width dưới bài)
-│   │   ├── single-sidebar.php     # Sidebar bài chi tiết (col-4 sticky): ô quảng cáo (placeholder AdSense) + tin mới nhất (5 bài)
+│   │   ├── single-sidebar.php     # Sidebar bài chi tiết (col-4 sticky): BXH mini giải (theo category) + nhận định sắp tới (3 trận) + tin mới nhất (5 bài). (Quảng cáo AdSense tạm ẩn)
 │   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương kim loại SVG gradient theo hạng; icon Tabler Icons MIT nhúng thẳng — không runtime/CDN)
 │   │   ├── sidebar-nav.php        # Sidebar điều hướng dashboard (desktop lg+): nav nhanh + active-state + khối tài khoản (điểm/streak); icon Tabler MIT
 │   │   ├── bottom-nav.php         # Bottom tab bar (mobile lg:hidden): 5 tab quick-nav (Trang chủ/Nhận định/Kết quả/Lịch/Tài khoản) + active-state; icon Tabler MIT
