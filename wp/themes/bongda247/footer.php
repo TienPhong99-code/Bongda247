@@ -1,7 +1,7 @@
 <?php defined('ABSPATH') || exit; ?>
 </main>
 
-<footer class="border-t border-card py-10">
+<footer class="border-t border-card py-10 lg:ml-60">
   <div class="container">
     <div class="flex flex-col md:flex-row items-center justify-between gap-4">
       <span class="font-hemi text-xl uppercase">

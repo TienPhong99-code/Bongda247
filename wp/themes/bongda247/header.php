@@ -140,4 +140,6 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
   </div>
 </header>
 
-<main class="pt-24 pb-16">
+<?php get_template_part('template-parts/sidebar-nav'); ?>
+
+<main class="pt-24 pb-16 lg:ml-60">
