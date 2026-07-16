@@ -69,7 +69,7 @@ wp/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
 │   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
-│   ├── single.php          # Bài viết đơn — layout 2 cột (col-8 nội dung canh trái + col-4 sidebar sticky) + TOC, author box, bài liên quan (slider), Like/Share/bình luận tích điểm
+│   ├── single.php          # Bài viết đơn — layout 2 cột (col-8 nội dung canh trái + col-4 sidebar sticky) + Tóm tắt nhanh (TL;DR từ excerpt), TOC, author box, bài liên quan (slider), Like/Share/bình luận tích điểm
 │   ├── comments.php        # Template bình luận (native WP, list + form + Trả lời/reply lồng, bắt đăng nhập, cộng 5đ/comment đầu)
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
