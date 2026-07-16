@@ -69,7 +69,7 @@ wp/
 │   ├── style.css           # Theme header
 │   ├── functions.php       # Enqueue scripts, theme setup
 │   ├── front-page.php      # Trang chủ (dải trận đấu nổi bật · hot slider · insights · lưới tin theo giải · chuyển nhượng + widget số liệu)
-│   ├── single.php          # Bài viết đơn (+ TOC, author box, ngày cập nhật, bài liên quan, Like/Share/bình luận tích điểm)
+│   ├── single.php          # Bài viết đơn — layout 2 cột (col-8 nội dung canh trái + col-4 sidebar sticky) + TOC, author box, bài liên quan (slider), Like/Share/bình luận tích điểm
 │   ├── comments.php        # Template bình luận (list + form, bắt đăng nhập, cộng 5đ/comment đầu)
 │   ├── archive.php         # Archive category/giải đấu
 │   ├── search.php          # Trang kết quả tìm kiếm
@@ -107,7 +107,8 @@ wp/
 │   │   ├── insight-card.php       # 1 card nhận định (dùng ở trang Nhận định)
 │   │   ├── prediction-badge.php   # Badge "AI dự đoán đúng X%" (link trang thành tích)
 │   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
-│   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
+│   │   ├── related-posts.php      # Bài viết liên quan (Swiper slider, 10 bài cùng category, full-width dưới bài)
+│   │   ├── single-sidebar.php     # Sidebar bài chi tiết (col-4 sticky): ô quảng cáo (placeholder AdSense) + tin mới nhất (5 bài)
 │   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương kim loại SVG gradient theo hạng; icon Tabler Icons MIT nhúng thẳng — không runtime/CDN)
 │   │   ├── sidebar-nav.php        # Sidebar điều hướng dashboard (desktop lg+): nav nhanh + active-state + khối tài khoản (điểm/streak); icon Tabler MIT
 │   │   ├── bottom-nav.php         # Bottom tab bar (mobile lg:hidden): 5 tab quick-nav (Trang chủ/Nhận định/Kết quả/Lịch/Tài khoản) + active-state; icon Tabler MIT
