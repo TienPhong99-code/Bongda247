@@ -263,5 +263,18 @@
         },
       });
     }
+
+    if (document.querySelector(".relatedSwiper")) {
+      new Swiper(".relatedSwiper", {
+        slidesPerView: 1.2,
+        spaceBetween: 16,
+        navigation: { nextEl: ".related-next", prevEl: ".related-prev" },
+        breakpoints: {
+          640: { slidesPerView: 2, spaceBetween: 16 },
+          768: { slidesPerView: 3, spaceBetween: 16 },
+          1024: { slidesPerView: 4, spaceBetween: 16 },
+        },
+      });
+    }
   });
 })();

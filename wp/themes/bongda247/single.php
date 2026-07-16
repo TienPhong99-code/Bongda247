@@ -6,7 +6,7 @@
       $cat  = $cats[0] ?? null;
       $tags = get_the_tags();
   ?>
-    <article class="max-w-4xl mx-auto">
+    <article>
       <nav class="flex text-sm mb-8 gap-2 font-medium text-secondary">
         <a href="<?php echo esc_url(home_url('/')); ?>" class="transition-colors hover:text-brand">Trang chủ</a>
         <?php if ($cat) : ?>
