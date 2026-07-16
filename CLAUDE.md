@@ -110,6 +110,7 @@ wp/
 │   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
 │   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương kim loại SVG gradient theo hạng; icon Tabler Icons MIT nhúng thẳng — không runtime/CDN)
 │   │   ├── sidebar-nav.php        # Sidebar điều hướng dashboard (desktop lg+): nav nhanh + active-state + khối tài khoản (điểm/streak); icon Tabler MIT
+│   │   ├── bottom-nav.php         # Bottom tab bar (mobile lg:hidden): 5 tab quick-nav (Trang chủ/Nhận định/Kết quả/Lịch/Tài khoản) + active-state; icon Tabler MIT
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
@@ -207,7 +208,7 @@ PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 ### Layout (dashboard)
 - **Header chính** giữ trên đầu (`header.php`, `fixed top-0 w-full`, h-16) — full-width mọi breakpoint.
 - **Sidebar điều hướng** cố định trái, **chỉ desktop (`lg+`, `hidden lg:flex`)**: `template-parts/sidebar-nav.php`, `fixed left-0 top-16 bottom-0 w-60`. Nav nhanh (6 mục, active-state `is_page()/is_front_page()`) + khối tài khoản (điểm/streak khi đăng nhập, CTA đăng nhập khi khách).
-- **Content + footer** dời phải `lg:ml-60` (desktop). **Mobile:** sidebar ẩn → content full-width, điều hướng qua hamburger menu của header (không đổi). Template nội dung KHÔNG đụng — tự dời theo offset.
+- **Content + footer** dời phải `lg:ml-60` (desktop). **Mobile:** sidebar ẩn → content full-width. Điều hướng nhanh mobile qua **bottom tab bar** (`template-parts/bottom-nav.php`, `lg:hidden fixed bottom-0`, 5 tab: Trang chủ/Nhận định/Kết quả/Lịch/Tài khoản, active-state) + hamburger menu header (đầy đủ link). Footer thêm `mb-16 lg:mb-0` để không bị bottom bar che. Template nội dung KHÔNG đụng — tự dời theo offset.
 
 ---
 
