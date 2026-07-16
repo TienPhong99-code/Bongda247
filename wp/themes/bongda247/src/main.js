@@ -186,6 +186,32 @@
       }).catch(function () { btn.disabled = false; });
     });
 
+    // --- Điểm danh ---
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-bd-checkin]') : null;
+      if (!btn || btn.disabled) return;
+      var box = btn.closest('[data-bd-checkin-box]');
+      if (!box) return;
+      btn.disabled = true;
+      fetch(box.getAttribute('data-bd-ajax'), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'bd_checkin', _wpnonce: box.getAttribute('data-bd-nonce') }),
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res && res.success) {
+          var d = res.data;
+          var bal = document.querySelector('[data-bd-points-balance]');
+          if (bal && typeof d.points === 'number') bal.textContent = d.points;
+          var st = box.querySelector('[data-bd-streak]');
+          if (st && typeof d.streak === 'number') st.textContent = d.streak;
+          btn.textContent = 'Đã điểm danh hôm nay ✓';
+          btn.className = 'rounded-full px-4 py-1.5 text-sm font-medium border border-card text-secondary cursor-default';
+        } else {
+          btn.disabled = false;
+        }
+      }).catch(function () { btn.disabled = false; });
+    });
+
     if (typeof Swiper === "undefined") return;
 
     if (document.querySelector(".hotSwiper")) {
