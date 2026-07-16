@@ -19,7 +19,7 @@ if ($bd_latest->have_posts()) : ?>
         <li>
           <a href="<?php echo esc_url(get_permalink()); ?>" class="group flex gap-3">
             <?php if (has_post_thumbnail()) : ?>
-              <div class="w-20 h-16 shrink-0 rounded-lg overflow-hidden border border-card">
+              <div class="w-28 h-20 shrink-0 rounded-lg overflow-hidden border border-card">
                 <?php the_post_thumbnail('bd_thumb', ['class' => 'w-full h-full object-cover', 'alt' => the_title_attribute(['echo' => false])]); ?>
               </div>
             <?php endif; ?>
