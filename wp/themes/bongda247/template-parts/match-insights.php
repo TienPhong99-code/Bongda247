@@ -61,7 +61,7 @@ $rendered     = 0;
                 <div class="flex items-center gap-2">
                   <?php $bd_emblem = bd_insight_league_emblem($home, $away); if ($bd_emblem) : ?>
                     <span class="inline-flex items-center rounded-sm bg-white px-1 py-0.5 shrink-0">
-                      <img src="<?php echo esc_url($bd_emblem); ?>" alt="" class="h-3.5 w-auto object-contain" loading="lazy" decoding="async">
+                      <img src="<?php echo esc_url($bd_emblem); ?>" alt="" class="h-5 w-auto object-contain" loading="lazy" decoding="async">
                     </span>
                   <?php endif; ?>
                   <?php if ($hot) : ?>
