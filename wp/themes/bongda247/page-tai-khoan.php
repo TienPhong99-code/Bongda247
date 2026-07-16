@@ -1,9 +1,11 @@
-<?php defined('ABSPATH') || exit; get_header(); ?>
+<?php defined('ABSPATH') || exit; get_header();
+$bd_logged = is_user_logged_in();
+?>
 
-<div class="container">
-  <h1 class="font-hemi text-3xl uppercase border-l-4 border-brand pl-4 mb-6">Tài khoản</h1>
+<div class="container <?php echo $bd_logged ? '' : 'flex-1 flex flex-col items-center justify-center py-10'; ?>">
+  <h1 class="font-hemi text-3xl uppercase mb-6 <?php echo $bd_logged ? 'border-l-4 border-brand pl-4' : 'text-center'; ?>">Tài khoản</h1>
 
-  <?php if (is_user_logged_in()) :
+  <?php if ($bd_logged) :
     $bd_u = wp_get_current_user(); ?>
     <div class="max-w-md rounded-2xl border border-card bg-card p-6">
       <div class="font-hemi text-xl mb-3"><?php echo esc_html($bd_u->display_name); ?></div>
@@ -57,7 +59,7 @@
     // Tab mặc định: lỗi thuộc đăng ký → mở tab Đăng ký, còn lại → Đăng nhập.
     $bd_tab = in_array($bd_err, ['email', 'weakpass', 'emailexists', 'regfail'], true) ? 'register' : 'login';
   ?>
-    <div class="max-w-md rounded-2xl border border-card bg-card p-6" data-bd-auth-tabs>
+    <div class="w-full max-w-md rounded-2xl border border-card bg-card p-6" data-bd-auth-tabs>
       <?php if ($bd_err && isset($bd_msgs[$bd_err])) : ?>
         <div class="rounded-lg border border-red-500/40 bg-red-500/10 text-red-500 px-4 py-3 mb-4 text-sm"><?php echo esc_html($bd_msgs[$bd_err]); ?></div>
       <?php endif; ?>

@@ -55,7 +55,17 @@
     background-color: var(--bd-bg);
     color: var(--bd-text);
     font-family: var(--font-inter);
+    /* Sticky footer: body cao tối thiểu 1 màn hình, xếp dọc → footer luôn đáy
+       kể cả khi main ít nội dung (VD trang tài khoản). Header/sidebar/bottom-nav
+       là position:fixed nên nằm ngoài flow, không ảnh hưởng. */
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
   }
+  /* main nở chiếm hết chỗ trống → đẩy footer xuống đáy. Flex-column để trang con
+     có thể căn giữa nội dung theo chiều dọc (VD form đăng nhập). */
+  main { flex: 1 0 auto; display: flex; flex-direction: column; }
   h1, h2, h3 { font-family: var(--font-oswald); }
 }
 
