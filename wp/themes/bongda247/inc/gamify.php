@@ -123,3 +123,72 @@ function bd_user_badges($uid) {
     }
     return $out;
 }
+
+// ─── Bảng xếp hạng ─────────────────────────────────────────────────────────
+/** Top thành viên. $range ∈ {week, all}. */
+function bd_leaderboard($range = 'week', $limit = 50) {
+    $limit = max(1, min(100, (int) $limit));
+    if ($range === 'all') {
+        $args = [
+            'number'     => $limit,
+            'meta_query' => ['pts' => ['key' => 'bd_points', 'value' => 0, 'compare' => '>', 'type' => 'NUMERIC']],
+            'orderby'    => ['pts' => 'DESC'],
+            'fields'     => ['ID', 'display_name'],
+        ];
+        $pt_key = 'bd_points';
+    } else {
+        $args = [
+            'number'     => $limit,
+            'meta_query' => [
+                'relation' => 'AND',
+                'wk'  => ['key' => 'bd_week_id', 'value' => current_time('o-\WW')],
+                'pts' => ['key' => 'bd_points_week', 'value' => 0, 'compare' => '>', 'type' => 'NUMERIC'],
+            ],
+            'orderby'    => ['pts' => 'DESC'],
+            'fields'     => ['ID', 'display_name'],
+        ];
+        $pt_key = 'bd_points_week';
+    }
+    $out  = [];
+    $rank = 0;
+    foreach (get_users($args) as $u) {
+        $rank++;
+        $earned = array_values(array_filter(bd_user_badges($u->ID), function ($b) { return $b['earned']; }));
+        usort($earned, function ($a, $b) { return bd_badge_tier_rank($b['tier']) <=> bd_badge_tier_rank($a['tier']); });
+        $out[] = [
+            'rank'      => $rank,
+            'user_id'   => (int) $u->ID,
+            'name'      => $u->display_name,
+            'points'    => (int) get_user_meta($u->ID, $pt_key, true),
+            'streak'    => (int) get_user_meta($u->ID, 'bd_streak', true),
+            'top_badge' => $earned ? $earned[0]['icon'] : '',
+        ];
+    }
+    return $out;
+}
+
+/** Hạng của user (đếm số người điểm cao hơn +1). 0 nếu chưa có điểm. */
+function bd_user_rank($uid, $range = 'week') {
+    if ($range === 'all') {
+        $mine = (int) get_user_meta($uid, 'bd_points', true);
+        if ($mine <= 0) return 0;
+        $higher = get_users([
+            'fields'     => 'ID',
+            'meta_query' => ['h' => ['key' => 'bd_points', 'value' => $mine, 'compare' => '>', 'type' => 'NUMERIC']],
+        ]);
+    } else {
+        $wk = current_time('o-\WW');
+        if ((string) get_user_meta($uid, 'bd_week_id', true) !== $wk) return 0;
+        $mine = (int) get_user_meta($uid, 'bd_points_week', true);
+        if ($mine <= 0) return 0;
+        $higher = get_users([
+            'fields'     => 'ID',
+            'meta_query' => [
+                'relation' => 'AND',
+                'wk' => ['key' => 'bd_week_id', 'value' => $wk],
+                'h'  => ['key' => 'bd_points_week', 'value' => $mine, 'compare' => '>', 'type' => 'NUMERIC'],
+            ],
+        ]);
+    }
+    return count($higher) + 1;
+}
