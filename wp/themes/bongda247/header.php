@@ -34,8 +34,8 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
   <div class="px-4 lg:px-6">
     <nav>
       <div class="flex items-center justify-between h-16">
-        <a href="<?php echo esc_url(home_url('/')); ?>" class="flex items-center space-x-2 group">
-          <span class="font-hemi text-2xl font-bold uppercase">BONGDA<span class="text-brand">247</span></span>
+        <a href="<?php echo esc_url(home_url('/')); ?>" class="flex items-center group" aria-label="Bongda247 — Trang chủ">
+          <img src="<?php echo esc_url(get_stylesheet_directory_uri() . '/assets/logo247.svg'); ?>" alt="Bongda247" width="69" height="40" class="bd-logo h-9 w-auto">
         </a>
 
         <ul class="hidden lg:flex items-center space-x-7">

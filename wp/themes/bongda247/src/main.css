@@ -73,6 +73,10 @@
   .bg-prediction  { @apply bg-brand text-on-brand; }
   .header         { background-color: var(--bd-bg); border-bottom: 1px solid var(--bd-border); }
 
+  /* Logo SVG artwork màu trắng: light mode đảo → đen; dark mode giữ trắng. */
+  .bd-logo        { filter: invert(1); }
+  .dark .bd-logo  { filter: none; }
+
   .prose-bd h2       { @apply text-2xl uppercase mt-8 mb-4; font-family: var(--font-hemi); }
   .prose-bd p        { @apply mb-4 leading-relaxed; color: var(--bd-secondary); }
   .prose-bd figure   { @apply my-8; }

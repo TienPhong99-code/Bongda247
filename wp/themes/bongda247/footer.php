@@ -4,9 +4,8 @@
 <footer class="border-t border-card py-10 lg:ml-60 mb-16 lg:mb-0">
   <div class="container">
     <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-      <span class="font-hemi text-xl uppercase">
-        BONGDA<span class="text-brand">247</span>
-      </span>
+      <img src="<?php echo esc_url(get_stylesheet_directory_uri() . '/assets/logo247.svg'); ?>" alt="Bongda247" width="62" height="36" class="bd-logo h-8 w-auto">
+
 
       <nav class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-secondary">
         <?php
