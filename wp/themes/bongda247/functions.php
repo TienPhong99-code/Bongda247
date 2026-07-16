@@ -30,6 +30,11 @@ add_action('wp_enqueue_scripts', function () {
 
     wp_enqueue_script('swiper', $uri . '/assets/vendor/swiper-bundle.min.js', [], $ver('/assets/vendor/swiper-bundle.min.js'), true);
     wp_enqueue_script('bongda247', $uri . '/dist/main.js', ['swiper'], $ver('/dist/main.js'), true);
+
+    // Script WP gốc để "Trả lời" chuyển form bình luận xuống dưới comment (bình luận lồng).
+    if (is_singular() && comments_open() && get_option('thread_comments')) {
+        wp_enqueue_script('comment-reply');
+    }
 });
 
 // Google Fonts: Inter + Oswald

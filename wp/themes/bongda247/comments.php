@@ -16,6 +16,15 @@ if (!function_exists('bd_comment_render')) {
             </div>
           </div>
           <div class="text-sm text-secondary leading-relaxed"><?php comment_text(); ?></div>
+          <?php if (is_user_logged_in()) : ?>
+            <div class="mt-3">
+              <?php comment_reply_link(array_merge($args, [
+                  'reply_text' => '↩ Trả lời',
+                  'depth'      => $depth,
+                  'max_depth'  => $args['max_depth'],
+              ]), $comment); ?>
+            </div>
+          <?php endif; ?>
         <?php // wp_list_comments tự đóng </li>
     }
 }
