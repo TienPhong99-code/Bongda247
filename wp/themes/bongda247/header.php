@@ -31,7 +31,7 @@ $bd_menu_pages = ['gioi-thieu' => 'Giới thiệu', 'lien-he' => 'Liên hệ'];
 ?>
 
 <header class="fixed top-0 w-full z-50 header">
-  <div class="container mx-auto">
+  <div class="px-4 lg:px-6">
     <nav>
       <div class="flex items-center justify-between h-16">
         <a href="<?php echo esc_url(home_url('/')); ?>" class="flex items-center space-x-2 group">
