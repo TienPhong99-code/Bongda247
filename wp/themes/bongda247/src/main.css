@@ -13,6 +13,11 @@
   --font-inter: "Inter", system-ui, sans-serif;
   --font-oswald: "Oswald", system-ui, sans-serif;
   --font-hemi: "SVN-Hemi Head", "Oswald", system-ui, sans-serif;
+
+  /* Khoảng cách chuẩn giữa các section — biến tái dùng.
+     Sinh cả họ utility: gap-section, space-y-section, mb-section, mt-section,
+     py-section, pt-section, pb-section... Đổi 1 chỗ, áp mọi nơi. */
+  --spacing-section: 3.5rem;
 }
 
 @font-face {

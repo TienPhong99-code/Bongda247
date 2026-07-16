@@ -1,5 +1,6 @@
 <?php defined('ABSPATH') || exit; get_header(); ?>
 
+<div class="flex flex-col gap-section">
 <?php get_template_part('template-parts/featured-matches'); ?>
 
 <section>
@@ -24,7 +25,7 @@
 
 <section>
   <div class="container">
-    <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4 mb-8">Tin theo giải đấu</h2>
+    <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4 mb-6">Tin theo giải đấu</h2>
     <?php
     // 3 giải mỗi cột — sửa mảng để thêm/bớt cột.
     $bd_home_categories = ['ngoai-hang-anh', 'la-liga', 'champions-league'];
@@ -50,5 +51,6 @@
     </div>
   </div>
 </section>
+</div>
 
 <?php get_footer(); ?>

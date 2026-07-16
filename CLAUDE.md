@@ -205,6 +205,10 @@ PUBLIC_FOOTBALL_DATA_KEY=           # football-data.org API key
 - Dark/Light mode toggle, lưu vào `localStorage`
 - Mobile-first responsive design
 
+### Spacing token (tái dùng)
+- **`--spacing-section`** (`src/main.css` `@theme`, mặc định `3.5rem`) — khoảng cách chuẩn giữa các section. Sinh cả họ utility Tailwind: `gap-section`, `space-y-section`, `mb-section`, `mt-section`, `py-section`, `pt-section`, `pb-section`… (utility tự sinh khi dùng lần đầu + rebuild). Đổi 1 chỗ, áp mọi nơi.
+- Trang chủ (`front-page.php`) bọc các section trong `<div class="flex flex-col gap-section">` → gap đều (đo được 56px, không dư đầu/cuối). Dùng cùng token cho template khác để đồng bộ.
+
 ### Layout (dashboard)
 - **Header chính** giữ trên đầu (`header.php`, `fixed top-0 w-full`, h-16) — full-width mọi breakpoint.
 - **Sidebar điều hướng** cố định trái, **chỉ desktop (`lg+`, `hidden lg:flex`)**: `template-parts/sidebar-nav.php`, `fixed left-0 top-16 bottom-0 w-60`. Nav nhanh (6 mục, active-state `is_page()/is_front_page()`) + khối tài khoản (điểm/streak khi đăng nhập, CTA đăng nhập khi khách).
