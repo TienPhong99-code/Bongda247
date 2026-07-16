@@ -102,6 +102,36 @@ function bd_ajax_toggle_like() {
     wp_send_json_success(['liked' => !$now_liked, 'count' => $count, 'points' => bd_get_points($uid)]);
 }
 
+// AJAX: toggle like 1 bình luận. Chỉ tín hiệu xã hội (đếm số) — KHÔNG cộng điểm
+// (comment + like không giới hạn → dễ farm). Meta: comment `bd_comment_likes` (int),
+// user `bd_liked_comments` (mảng comment ID đã thích).
+add_action('wp_ajax_bd_toggle_comment_like', 'bd_ajax_toggle_comment_like');
+function bd_ajax_toggle_comment_like() {
+    check_ajax_referer('bd_points');
+    if (!is_user_logged_in()) {
+        wp_send_json_error('auth', 403);
+    }
+    $cid = (int) ($_POST['comment_id'] ?? 0);
+    if (!get_comment($cid)) {
+        wp_send_json_error('invalid', 400);
+    }
+    $uid   = get_current_user_id();
+    $liked = array_filter((array) get_user_meta($uid, 'bd_liked_comments', true));
+    $count = (int) get_comment_meta($cid, 'bd_comment_likes', true);
+    $now   = in_array($cid, $liked, true);
+
+    if ($now) {
+        $liked = array_values(array_diff($liked, [$cid]));
+        $count = max(0, $count - 1);
+    } else {
+        $liked[] = $cid;
+        $count++;
+    }
+    update_user_meta($uid, 'bd_liked_comments', $liked);
+    update_comment_meta($cid, 'bd_comment_likes', $count);
+    wp_send_json_success(['liked' => !$now, 'count' => $count]);
+}
+
 // Cộng điểm khi user đăng nhập bình luận (5đ, dedup 1 lần/bài).
 add_action('comment_post', 'bd_award_comment_points', 10, 2);
 function bd_award_comment_points($comment_id, $approved) {

@@ -16,15 +16,30 @@ if (!function_exists('bd_comment_render')) {
             </div>
           </div>
           <div class="text-sm text-secondary leading-relaxed"><?php comment_text(); ?></div>
-          <?php if (is_user_logged_in()) : ?>
-            <div class="mt-3">
+          <?php
+          $bd_cid    = (int) $comment->comment_ID;
+          $bd_clikes = (int) get_comment_meta($bd_cid, 'bd_comment_likes', true);
+          ?>
+          <div class="mt-3 flex items-center gap-4 text-xs">
+            <?php if (is_user_logged_in()) :
+                $bd_cliked = in_array($bd_cid, array_filter((array) get_user_meta(get_current_user_id(), 'bd_liked_comments', true)), true);
+            ?>
+              <button type="button" data-bd-comment-like data-bd-cid="<?php echo esc_attr($bd_cid); ?>" data-bd-ajax="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" data-bd-nonce="<?php echo esc_attr(wp_create_nonce('bd_points')); ?>" aria-pressed="<?php echo $bd_cliked ? 'true' : 'false'; ?>" class="inline-flex items-center gap-1 transition-colors <?php echo $bd_cliked ? 'text-brand' : 'text-secondary hover:text-brand'; ?>">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.9-9.6-9.2C1 8.5 2.8 5.5 5.9 5.5c1.9 0 3.3 1 4.1 2.3C10.8 6.5 12.2 5.5 14.1 5.5c3.1 0 4.9 3 3.5 6.3C19.5 16.1 12 21 12 21z"/></svg>
+                <span data-bd-comment-like-count><?php echo $bd_clikes; ?></span>
+              </button>
               <?php comment_reply_link(array_merge($args, [
                   'reply_text' => '↩ Trả lời',
                   'depth'      => $depth,
                   'max_depth'  => $args['max_depth'],
               ]), $comment); ?>
-            </div>
-          <?php endif; ?>
+            <?php elseif ($bd_clikes > 0) : ?>
+              <span class="inline-flex items-center gap-1 text-secondary">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.9-9.6-9.2C1 8.5 2.8 5.5 5.9 5.5c1.9 0 3.3 1 4.1 2.3C10.8 6.5 12.2 5.5 14.1 5.5c3.1 0 4.9 3 3.5 6.3C19.5 16.1 12 21 12 21z"/></svg>
+                <?php echo $bd_clikes; ?>
+              </span>
+            <?php endif; ?>
+          </div>
         <?php // wp_list_comments tự đóng </li>
     }
 }

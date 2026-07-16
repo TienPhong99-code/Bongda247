@@ -90,6 +90,33 @@
     });
   });
 
+  // --- Like bình luận (tín hiệu xã hội, không cộng điểm) ---
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest("[data-bd-comment-like]") : null;
+    if (!btn) return;
+    fetch(btn.getAttribute("data-bd-ajax"), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        action: "bd_toggle_comment_like",
+        comment_id: btn.getAttribute("data-bd-cid"),
+        _wpnonce: btn.getAttribute("data-bd-nonce"),
+      }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.success) return;
+        btn.setAttribute("aria-pressed", res.data.liked ? "true" : "false");
+        btn.classList.toggle("text-brand", res.data.liked);
+        btn.classList.toggle("text-secondary", !res.data.liked);
+        btn.classList.toggle("hover:text-brand", !res.data.liked);
+        var c = btn.querySelector("[data-bd-comment-like-count]");
+        if (c) c.textContent = res.data.count;
+      })
+      .catch(function () {});
+  });
+
   // --- Swiper ---
   document.addEventListener("DOMContentLoaded", function () {
     // --- Điểm: đọc + like ---
