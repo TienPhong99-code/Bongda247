@@ -9,7 +9,7 @@
       <div class="font-hemi text-xl mb-3"><?php echo esc_html($bd_u->display_name); ?></div>
       <p class="text-sm text-secondary">Email: <?php echo esc_html($bd_u->user_email); ?></p>
       <p class="text-sm text-secondary">Tham gia: <?php echo esc_html(date_i18n('d/m/Y', strtotime($bd_u->user_registered))); ?></p>
-      <p class="text-sm text-secondary mt-2">Điểm: <span class="text-brand font-bold"><?php echo (int) bd_get_points($bd_u->ID); ?></span></p>
+      <p class="text-sm text-secondary mt-2">Điểm: <span data-bd-points-balance class="text-brand font-bold"><?php echo (int) bd_get_points($bd_u->ID); ?></span></p>
       <?php
       $bd_today      = current_time('Y-m-d');
       $bd_done_today = ((string) get_user_meta($bd_u->ID, 'bd_checkin_last', true) === $bd_today);

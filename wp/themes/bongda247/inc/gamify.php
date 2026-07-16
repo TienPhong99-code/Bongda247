@@ -87,9 +87,9 @@ function bd_quest_bump($uid, $type) {
 // ─── Huy hiệu (suy ra từ chỉ số, không lưu state) ──────────────────────────
 // tier ∈ bronze|silver|gold|brand ; metric ∈ points|streak|read|comment|unlock
 const BD_BADGES = [
-    ['id'=>'rookie',    'name'=>'Người mới',     'desc'=>'Đạt 100 điểm',       'icon'=>'🥉','tier'=>'bronze','metric'=>'points', 'need'=>100],
-    ['id'=>'pro',       'name'=>'Cao thủ',       'desc'=>'Đạt 500 điểm',       'icon'=>'🥈','tier'=>'silver','metric'=>'points', 'need'=>500],
-    ['id'=>'legend',    'name'=>'Huyền thoại',   'desc'=>'Đạt 2000 điểm',      'icon'=>'🥇','tier'=>'gold',  'metric'=>'points', 'need'=>2000],
+    ['id'=>'rookie',    'name'=>'Người mới',     'desc'=>'Đạt 100 điểm',       'icon'=>'⭐','tier'=>'bronze','metric'=>'points', 'need'=>100],
+    ['id'=>'pro',       'name'=>'Cao thủ',       'desc'=>'Đạt 500 điểm',       'icon'=>'⚡','tier'=>'silver','metric'=>'points', 'need'=>500],
+    ['id'=>'legend',    'name'=>'Huyền thoại',   'desc'=>'Đạt 2000 điểm',      'icon'=>'👑','tier'=>'gold',  'metric'=>'points', 'need'=>2000],
     ['id'=>'diligent',  'name'=>'Chuyên cần',    'desc'=>'Streak 7 ngày',      'icon'=>'🔥','tier'=>'bronze','metric'=>'streak', 'need'=>7],
     ['id'=>'steadfast', 'name'=>'Kiên định',     'desc'=>'Streak 30 ngày',     'icon'=>'💎','tier'=>'gold',  'metric'=>'streak', 'need'=>30],
     ['id'=>'reader',    'name'=>'Mọt tin',       'desc'=>'Đọc 50 bài',         'icon'=>'📰','tier'=>'silver','metric'=>'read',   'need'=>50],

@@ -79,8 +79,8 @@
       var bdNonce = bdPts.getAttribute('data-bd-nonce');
       var bdPost = bdPts.getAttribute('data-bd-post');
       var setBalance = function (p) {
-        var b = document.querySelector('[data-bd-points-balance]');
-        if (b && typeof p === 'number') b.textContent = p;
+        if (typeof p !== 'number') return;
+        document.querySelectorAll('[data-bd-points-balance]').forEach(function (b) { b.textContent = p; });
       };
       var bdSend = function (action, extra) {
         var params = { action: action, post_id: bdPost, _wpnonce: bdNonce };
@@ -177,8 +177,7 @@
             gate.innerHTML = '';
             gate.appendChild(badge);
           }
-          var bal = document.querySelector('[data-bd-points-balance]');
-          if (bal) bal.textContent = res.data.points;
+          document.querySelectorAll('[data-bd-points-balance]').forEach(function (b) { b.textContent = res.data.points; });
         } else {
           btn.textContent = 'Không đủ điểm';
           btn.disabled = false;
@@ -200,8 +199,9 @@
       }).then(function (r) { return r.json(); }).then(function (res) {
         if (res && res.success) {
           var d = res.data;
-          var bal = document.querySelector('[data-bd-points-balance]');
-          if (bal && typeof d.points === 'number') bal.textContent = d.points;
+          if (typeof d.points === 'number') {
+            document.querySelectorAll('[data-bd-points-balance]').forEach(function (b) { b.textContent = d.points; });
+          }
           var st = box.querySelector('[data-bd-streak]');
           if (st && typeof d.streak === 'number') st.textContent = d.streak;
           btn.textContent = 'Đã điểm danh hôm nay ✓';
