@@ -1,15 +1,8 @@
 <?php
 defined('ABSPATH') || exit;
-// Sidebar bài chi tiết: ô quảng cáo + tin mới nhất.
+// Sidebar bài chi tiết: tin mới nhất.
+// (Ô quảng cáo tạm ẩn — khi có Google AdSense, thêm lại khối <ins class="adsbygoogle">.)
 ?>
-<div>
-  <div class="text-xs font-hemi uppercase text-secondary mb-2">Quảng cáo</div>
-  <div class="rounded-xl border border-card bg-card overflow-hidden">
-    <?php // TODO: chèn mã Google AdSense (<ins class="adsbygoogle" ...>) vào đây khi có tài khoản. ?>
-    <div class="aspect-[3/4] flex items-center justify-center text-secondary text-sm bg-control">Quảng cáo</div>
-  </div>
-</div>
-
 <?php
 $bd_latest = new WP_Query([
     'post_type'           => 'post',
