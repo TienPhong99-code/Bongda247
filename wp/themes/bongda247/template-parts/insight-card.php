@@ -19,7 +19,9 @@ $bd_pred  = (string) get_post_meta($bd_id, 'prediction', true);
       </span>
       <div class="flex items-center gap-2">
         <?php $bd_emblem = bd_insight_league_emblem($bd_home, $bd_away); if ($bd_emblem) : ?>
-          <img src="<?php echo esc_url($bd_emblem); ?>" alt="" width="20" height="20" class="w-5 h-5 object-contain" loading="lazy" decoding="async">
+          <span class="inline-flex items-center rounded-sm bg-white px-1 py-0.5 shrink-0">
+            <img src="<?php echo esc_url($bd_emblem); ?>" alt="" class="h-3.5 w-auto object-contain" loading="lazy" decoding="async">
+          </span>
         <?php endif; ?>
         <?php if ($bd_hot) : ?><img src="<?php echo esc_url($bd_flame); ?>" alt="Hot" width="20" height="20"><?php endif; ?>
       </div>

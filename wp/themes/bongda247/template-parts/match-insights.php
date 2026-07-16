@@ -11,13 +11,13 @@ $rendered     = 0;
   <div class="flex items-center justify-between mb-6">
     <h2 class="font-hemi text-2xl uppercase border-l-4 border-brand pl-4">Số liệu chuyên sâu</h2>
     <div class="flex gap-2">
-      <button class="insight-prev p-2 rounded-full border border-card hover:bg-brand cursor-pointer transition-colors bg-control" aria-label="Trước">
+      <button class="insight-prev p-2 rounded-full border border-card hover:bg-brand hover:text-on-brand cursor-pointer transition-colors bg-control" aria-label="Trước">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m15 18-6-6 6-6"></path>
         </svg>
       </button>
-      <button class="insight-next p-2 rounded-full border border-card hover:bg-brand cursor-pointer transition-colors bg-control" aria-label="Sau">
+      <button class="insight-next p-2 rounded-full border border-card hover:bg-brand hover:text-on-brand cursor-pointer transition-colors bg-control" aria-label="Sau">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m9 18 6-6-6-6"></path>
@@ -60,7 +60,9 @@ $rendered     = 0;
                 </span>
                 <div class="flex items-center gap-2">
                   <?php $bd_emblem = bd_insight_league_emblem($home, $away); if ($bd_emblem) : ?>
-                    <img src="<?php echo esc_url($bd_emblem); ?>" alt="" width="20" height="20" class="w-5 h-5 object-contain" loading="lazy" decoding="async">
+                    <span class="inline-flex items-center rounded-sm bg-white px-1 py-0.5 shrink-0">
+                      <img src="<?php echo esc_url($bd_emblem); ?>" alt="" class="h-3.5 w-auto object-contain" loading="lazy" decoding="async">
+                    </span>
                   <?php endif; ?>
                   <?php if ($hot) : ?>
                     <img src="<?php echo esc_url($flame); ?>" alt="Hot" width="20" height="20">
