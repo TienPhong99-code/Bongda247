@@ -86,7 +86,7 @@ wp/
 │   ├── footer.php          # Footer
 │   ├── inc/
 │   │   ├── query.php       # WP_Query helpers (bd_category_posts, bd_hero, ...)
-│   │   ├── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate)
+│   │   ├── football-data.php # Data layer football-data.org (standings/fixtures, cache stale-while-revalidate) + bd_insight_team_logo/bd_insight_team_badge/bd_insight_league_emblem (khớp tên đội qua BXH 5 giải → crest + emblem giải cho card nhận định; alias tên rút gọn; không khớp → chỉ tên)
 │   │   ├── toc.php         # bd_toc() — sinh mục lục + gắn id H2 cho bài viết
 │   │   ├── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
 │   │   ├── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
@@ -95,7 +95,7 @@ wp/
 │   │   └── gamify.php      # SP4 gamification: bd_checkin (điểm danh+streak) + BD_QUESTS/bd_quest_bump (nhiệm vụ hằng ngày) + bd_user_badges (huy hiệu) + bd_leaderboard/bd_user_rank (bảng xếp hạng) + AJAX bd_checkin
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
-│   │   ├── match-insights.php     # Carousel nhận định trận đấu
+│   │   ├── match-insights.php     # Carousel nhận định trận đấu (logo đội + logo giải + icon giờ)
 │   │   ├── sidebar-slider.php     # Sidebar carousel
 │   │   ├── featured-matches.php   # Dải trận đấu nổi bật đầu trang (gộp lịch+KQ 5 giải, ẩn khi rỗng)
 │   │   ├── category-column.php    # 1 cột lưới "TIN THEO GIẢI ĐẤU"
