@@ -66,6 +66,9 @@ function bd_ajax_award() {
     }
     $uid     = get_current_user_id();
     $awarded = bd_award_points($uid, $sub, $post_id);
+    if ($sub === 'read') {
+        bd_quest_bump($uid, 'read'); // nhiệm vụ đọc — bump mỗi lần AJAX read đủ điều kiện
+    }
     wp_send_json_success(['points' => bd_get_points($uid), 'awarded' => $awarded]);
 }
 
@@ -92,6 +95,7 @@ function bd_ajax_toggle_like() {
         $liked[] = $post_id;
         $count++;
         bd_award_points($uid, 'like', $post_id); // dedup qua bd_like_awarded_posts → re-like không cộng lại
+        bd_quest_bump($uid, 'like');
     }
     update_user_meta($uid, 'bd_liked_posts', $liked);
     update_post_meta($post_id, 'bd_like_count', $count);
@@ -109,6 +113,7 @@ function bd_award_comment_points($comment_id, $approved) {
         return; // chỉ user đăng nhập
     }
     bd_award_points((int) $c->user_id, 'comment', (int) $c->comment_post_ID);
+    bd_quest_bump((int) $c->user_id, 'comment');
 }
 
 // ─── SP3: Mở khóa dự đoán ──────────────────────────────────────────────────

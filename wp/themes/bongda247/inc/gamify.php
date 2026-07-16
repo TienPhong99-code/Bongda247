@@ -40,3 +40,46 @@ function bd_ajax_checkin() {
     }
     wp_send_json_success(bd_checkin(get_current_user_id()));
 }
+
+// ─── Nhiệm vụ hằng ngày ────────────────────────────────────────────────────
+const BD_QUESTS = [
+    'read'    => ['target' => 3, 'reward' => 3, 'label' => 'Đọc 3 bài hôm nay'],
+    'like'    => ['target' => 1, 'reward' => 2, 'label' => 'Thích 1 bài'],
+    'comment' => ['target' => 1, 'reward' => 5, 'label' => 'Bình luận 1 bài'],
+];
+
+/** Lazy-reset khi sang ngày mới; trả progress + done hiện tại. */
+function bd_quest_state($uid) {
+    $today = current_time('Y-m-d');
+    if ((string) get_user_meta($uid, 'bd_quest_day', true) !== $today) {
+        update_user_meta($uid, 'bd_quest_day', $today);
+        update_user_meta($uid, 'bd_quest_progress', []);
+        update_user_meta($uid, 'bd_quest_done', []);
+    }
+    return [
+        'progress' => (array) get_user_meta($uid, 'bd_quest_progress', true),
+        'done'     => (array) get_user_meta($uid, 'bd_quest_done', true),
+    ];
+}
+
+/** Tăng tiến độ 1 loại; cộng thưởng đúng 1 lần khi đạt target. */
+function bd_quest_bump($uid, $type) {
+    if (!isset(BD_QUESTS[$type])) {
+        return ['completed' => false, 'reward' => 0];
+    }
+    $state    = bd_quest_state($uid); // đảm bảo đúng ngày
+    $progress = $state['progress'];
+    $done     = $state['done'];
+    if (!empty($done[$type])) {
+        return ['completed' => false, 'reward' => 0]; // đã xong hôm nay
+    }
+    $progress[$type] = (int) ($progress[$type] ?? 0) + 1;
+    update_user_meta($uid, 'bd_quest_progress', $progress);
+    if ($progress[$type] >= BD_QUESTS[$type]['target']) {
+        $done[$type] = 1;
+        update_user_meta($uid, 'bd_quest_done', $done);
+        bd_credit_points($uid, BD_QUESTS[$type]['reward']);
+        return ['completed' => true, 'reward' => BD_QUESTS[$type]['reward']];
+    }
+    return ['completed' => false, 'reward' => 0];
+}
