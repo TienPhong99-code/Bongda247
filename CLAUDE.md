@@ -50,7 +50,8 @@ Dự án gồm **2 phần chính**:
 ```
 web/
 ├── bot-press.js            # Telegram bot + AI automation (entry point)
-├── matchPreviewImage.js    # Tạo ảnh preview trận đấu 1200×630px
+├── matchPreviewImage.js    # Tạo ảnh preview trận đấu 1200×630px (Luồng 6)
+├── newsPreviewImage.js     # Tạo ảnh featured branded 1200×630px cho bài RSS (Luồng 5, thay ảnh báo gốc)
 ├── lib/
 │   └── wp.js               # Adapter ghi/đọc WordPress REST API
 ├── scripts/
@@ -356,12 +357,14 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 
 1. `fetchRSSFeeds()` — fetch 4 nguồn: Sky Sports PL, Sky Sports Football, BBC Sport, Bóng Đá Plus
 2. `filterAndRankArticles()` — lọc bài mới (< 6h), có từ khóa liên quan, loại URL đã xử lý
-3. Chấm điểm → lấy top 2 bài mỗi lần chạy
-4. `extractOgImage()` — scrape og:image nếu RSS không có ảnh
-5. `generateNewsPost()` — Gemini viết lại hoàn toàn tiếng Việt, chuẩn SEO (KHÔNG dịch thẳng)
-6. Gửi Telegram preview với ảnh: **✅ Đăng bài** / **⏭ Bỏ qua**
-7. Duyệt → upload ảnh lên WP Media Library → tạo `post` với `source_url` + `source_credit`
+3. Chấm điểm → lấy top bài mỗi lần chạy
+4. `generateNewsPost()` — Gemini viết lại **HOÀN TOÀN** tiếng Việt từ DỮ KIỆN bài gốc, chuẩn SEO. Prompt siết mạnh: chỉ lấy sự kiện/số liệu/tên/tỉ số, **CẤM dịch câu & paraphrase sát**, tiêu đề đặt mới, thêm phân tích/bối cảnh riêng (tăng tính chuyển hoá — giảm rủi ro bản quyền)
+5. Fetch ảnh TheSportsDB (cầu thủ/đội nổi bật) làm ảnh **chèn giữa bài** — KHÔNG scrape ảnh báo gốc
+6. Gửi Telegram preview (ảnh TheSportsDB nếu có): **✅ Đăng bài** / **⏭ Bỏ qua**
+7. Duyệt → `generateNewsPreviewImage()` tạo **featured image branded tự sinh** (news card 1200×630: logo + tiêu đề + category, 100% tài sản Bongda247) → upload WP; ảnh TheSportsDB chèn giữa content → tạo `post` với `source_url` + `source_credit`
 8. `processedUrls` Set reset lúc 0h mỗi ngày
+
+**⚠️ Bản quyền (RSS):** KHÔNG dùng lại ảnh báo gốc (bỏ hẳn scrape og:image + RSS thumbnail) — featured image do bot tự sinh. Nội dung là bản **viết lại chuyển hoá** (chỉ lấy dữ kiện, không dịch/không copy câu chữ), có ghi nguồn (`source_url`/`source_credit`). TheSportsDB là nguồn ảnh độc lập (không phải ảnh của báo gốc).
 
 **RSS Sources:**
 - Sky Sports PL: `https://www.skysports.com/rss/12040`

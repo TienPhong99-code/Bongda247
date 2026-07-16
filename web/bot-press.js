@@ -9,6 +9,7 @@ import axios from "axios";
 import cron from "node-cron";
 import RssParser from "rss-parser";
 import { generateMatchPreviewImage } from "./matchPreviewImage.js";
+import { generateNewsPreviewImage } from "./newsPreviewImage.js";
 
 // ============================================================
 // 1. KHỞI TẠO
@@ -1156,21 +1157,30 @@ bot.on("callback_query", async (ctx) => {
     try {
       const { article, generatedPost, categoryId } = draft;
 
-      // Upload ảnh thumbnail (og:image / RSS) → mainImage
-      const mainImage = article.imageUrl
-        ? await uploadImageFromUrl(article.imageUrl, generatedPost.title)
-        : null;
+      // Featured image = news card tự sinh (branded, 100% tài sản Bongda247) —
+      // KHÔNG scrape ảnh báo gốc. Tạo lúc duyệt (giống Luồng 6) để không tốn
+      // Puppeteer cho bài bị bỏ qua.
+      const categoryName = CATEGORIES[generatedPost.league]?.title ?? generatedPost.league;
+      let mainImage = null;
+      try {
+        const cardBuffer = await generateNewsPreviewImage({
+          title: generatedPost.title,
+          categoryName,
+        });
+        mainImage = await wp.uploadMedia(
+          cardBuffer,
+          `${createSlug(generatedPost.title).slice(0, 80) || "bongda247-news"}.jpg`
+        );
+        console.log("✅ News card uploaded:", mainImage?.id);
+      } catch (e) {
+        console.warn("⚠️ Không tạo được news card:", e.message);
+      }
 
-      // Upload ảnh TheSportsDB → chèn vào content sau section đầu tiên.
-      // runNewsFetch() có thể fallback sportsDbImageUrl = imageUrl khi TheSportsDB không trả
-      // kết quả nào — cùng 1 URL thì dùng lại ảnh mainImage vừa upload thay vì tải + upload
-      // lại lần nữa (WP không dedupe theo content hash như Sanity, sẽ ra 2 file x.jpg/x-1.jpg).
+      // Ảnh TheSportsDB (cầu thủ/đội) → chèn vào content sau section đầu tiên.
       const sportsDbLabel = generatedPost.mainPlayer || generatedPost.mainTeam || generatedPost.title;
-      const sportsDbImage = !article.sportsDbImageUrl
-        ? null
-        : article.sportsDbImageUrl === article.imageUrl && mainImage
-        ? mainImage
-        : await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel);
+      const sportsDbImage = article.sportsDbImageUrl
+        ? await uploadImageFromUrl(article.sportsDbImageUrl, sportsDbLabel)
+        : null;
 
       // Tạo caption + credit cho ảnh in-content
       let sportsDbCaption = "";
@@ -1305,21 +1315,6 @@ async function fetchRSSFeeds() {
   return allItems;
 }
 
-async function extractOgImage(url) {
-  try {
-    const res = await axios.get(url, {
-      timeout: 8000,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Bongda247Bot/1.0)" },
-    });
-    const match =
-      res.data.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      res.data.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function filterAndRankArticles(items) {
   const now = Date.now();
   const SIX_HOURS = 6 * 60 * 60 * 1000;
@@ -1354,11 +1349,18 @@ const CATEGORY_GUIDE = `HƯỚNG DẪN CHỌN DANH MỤC (ưu tiên theo thứ t
 
 async function generateNewsPost(article) {
   const prompt = `Bạn là biên tập viên bóng đá chuyên nghiệp viết tiếng Việt chuẩn SEO.
-Dựa trên thông tin bài gốc dưới đây, hãy VIẾT LẠI HOÀN TOÀN bằng tiếng Việt — KHÔNG dịch thẳng, KHÔNG copy.
-Thêm phân tích, góc nhìn, bối cảnh phù hợp độc giả Việt Nam.
+Bài gốc dưới đây CHỈ là NGUỒN DỮ KIỆN (sự kiện, số liệu, tên người/đội, tỉ số, mốc thời gian, phát biểu).
+Nhiệm vụ: viết MỘT BÀI HOÀN TOÀN MỚI bằng tiếng Việt, đưa tin cùng sự kiện đó nhưng bằng lời văn và bố cục của riêng bạn.
 
-TIÊU ĐỀ GỐC: ${article.title}
-NỘI DUNG GỐC: ${article.description}
+QUY TẮC BẢN QUYỀN — BẮT BUỘC:
+- TUYỆT ĐỐI KHÔNG dịch câu, KHÔNG diễn giải sát (paraphrase) theo câu chữ hay trình tự của bài gốc.
+- Chỉ lấy DỮ KIỆN; tự sắp xếp lại mạch bài, tự đặt câu, dùng từ ngữ khác hoàn toàn bài gốc.
+- Không sao chép nguyên văn quá một cụm ngắn. Nếu trích PHÁT BIỂU trực tiếp thì đặt trong ngoặc kép và ghi rõ ai nói.
+- Tiêu đề đặt MỚI hoàn toàn — không được là bản dịch tiêu đề gốc.
+- Tăng tính nguyên gốc: bổ sung phân tích chuyên môn, bối cảnh, ý nghĩa với cục diện giải đấu, góc nhìn cho độc giả Việt Nam.
+
+TIÊU ĐỀ GỐC (chỉ để hiểu sự kiện, KHÔNG dịch): ${article.title}
+DỮ KIỆN GỐC: ${article.description}
 NGUỒN: ${article.source}
 
 Yêu cầu:
@@ -1462,8 +1464,8 @@ async function sendNewsPreview(ndId, article, generatedPost) {
   };
 
   try {
-    if (article.imageUrl) {
-      await bot.telegram.sendPhoto(OWNER_CHAT_ID, article.imageUrl, {
+    if (article.sportsDbImageUrl) {
+      await bot.telegram.sendPhoto(OWNER_CHAT_ID, article.sportsDbImageUrl, {
         caption,
         parse_mode: "HTML",
         reply_markup: keyboard,
@@ -1498,10 +1500,9 @@ async function runNewsFetch() {
     const selected = ranked.slice(0, 5);
     for (const article of selected) {
       processedUrls.add(article.url);
-      // Luôn scrape og:image từ trang gốc — ảnh full-size (1200×630)
-      // RSS thumbnail chỉ là preview nhỏ, dùng làm fallback cuối
-      const ogImage = await extractOgImage(article.url);
-      article.imageUrl = ogImage || article.imageUrl || null;
+      // KHÔNG scrape ảnh báo gốc (og:image/RSS thumbnail) — tránh rủi ro bản quyền ảnh.
+      // Featured image = news card tự sinh (branded) tạo lúc duyệt đăng.
+      article.imageUrl = null;
       try {
         const generatedPost = await generateNewsPost(article);
         // TheSportsDB → ảnh xuất hiện TRONG bài viết (không phải thumbnail)
@@ -1530,11 +1531,8 @@ async function runNewsFetch() {
             console.log(`🖼 Fallback team image (${matched}):`, article.sportsDbImageUrl ? "✓" : "null");
           }
         }
-        // Fallback cuối: dùng og:image làm ảnh in-article nếu TheSportsDB không trả kết quả
-        if (!article.sportsDbImageUrl && article.imageUrl) {
-          article.sportsDbImageUrl = article.imageUrl;
-          console.log("🖼 Fallback to og:image for in-article");
-        }
+        // Không fallback og:image cho ảnh in-article — nếu TheSportsDB rỗng thì
+        // bài không có ảnh chèn giữa (chấp nhận), vẫn có featured card tự sinh.
         const categoryId = getCategoryId(generatedPost.league);
         const ndId = `nd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         newsDraftStore.set(ndId, { article, generatedPost, categoryId });
