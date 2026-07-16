@@ -78,7 +78,8 @@ wp/
 │   ├── page-ket-qua-bong-da.php # Trang Kết quả bóng đá (FINISHED 5 giải, nhóm theo ngày)
 │   ├── page-nhan-dinh.php     # Trang Nhận định (cards CPT sắp tới + bài phân tích tag nhan-dinh)
 │   ├── page-thanh-tich-du-doan.php # Trang Thành tích dự đoán (% AI đúng + bảng trận)
-│   ├── page-tai-khoan.php  # Trang Tài khoản (đăng nhập/đăng ký/hồ sơ)
+│   ├── page-tai-khoan.php  # Trang Tài khoản (đăng nhập/đăng ký/hồ sơ + điểm danh/nhiệm vụ/huy hiệu SP4)
+│   ├── page-bang-xep-hang-thanh-vien.php # Bảng xếp hạng thành viên (tuần + all-time, ?range=week|all)
 │   ├── page.php            # Trang tĩnh mặc định
 │   ├── 404.php             # Trang 404
 │   ├── header.php          # Header + nav + search-toggle + mobile menu
@@ -90,7 +91,8 @@ wp/
 │   │   ├── schema.php      # JSON-LD SportsEvent cho match_insight (RankMath không map field trận)
 │   │   ├── prediction.php  # bd_prediction_stats() — gom % dự đoán đúng (CPT bd_prediction)
 │   │   ├── auth.php        # Handler đăng ký/đăng nhập frontend (admin-post, engine WP) + ẩn admin bar cho reader
-│   │   └── points.php      # Ví điểm bd_award_points/bd_get_points + AJAX bd_award/bd_toggle_like (tích điểm đọc/like) + bd_spend_points/bd_is_unlocked/AJAX bd_unlock + bd_prediction_badge (mở khóa dự đoán 5đ)
+│   │   ├── points.php      # Ví điểm bd_award_points/bd_get_points/bd_credit_points (cửa cộng điểm + điểm tuần) + AJAX bd_award/bd_toggle_like (tích điểm đọc/like) + bd_spend_points/bd_is_unlocked/AJAX bd_unlock + bd_prediction_badge (mở khóa dự đoán 5đ)
+│   │   └── gamify.php      # SP4 gamification: bd_checkin (điểm danh+streak) + BD_QUESTS/bd_quest_bump (nhiệm vụ hằng ngày) + bd_user_badges (huy hiệu) + bd_leaderboard/bd_user_rank (bảng xếp hạng) + AJAX bd_checkin
 │   ├── template-parts/
 │   │   ├── hot-news-slider.php    # Carousel tin hot
 │   │   ├── match-insights.php     # Carousel nhận định trận đấu
@@ -106,6 +108,7 @@ wp/
 │   │   ├── prediction-badge.php   # Badge "AI dự đoán đúng X%" (link trang thành tích)
 │   │   ├── author-box.php         # Author box cuối bài (tên + bio + link trang tác giả)
 │   │   ├── related-posts.php      # Bài viết liên quan (3 bài cùng category)
+│   │   ├── badge-grid.php         # Lưới huy hiệu (SP4, huy chương gradient theo hạng)
 │   │   └── theme-toggle.php       # Dark/Light mode toggle
 │   ├── src/
 │   │   ├── main.css        # Tailwind source
@@ -135,7 +138,8 @@ wp/
 - `/ket-qua-bong-da/` — Kết quả bóng đá (trận FINISHED 5 giải, nhóm theo ngày)
 - `/nhan-dinh/` — Nhận định bóng đá (cards CPT match_insight sắp tới + bài phân tích tag `nhan-dinh`)
 - `/thanh-tich-du-doan/` — Thành tích dự đoán (% AI đúng 1X2 + tỉ số + bảng trận gần nhất; đọc CPT `bd_prediction`)
-- `/tai-khoan/` — Tài khoản: đăng nhập/đăng ký (engine auth WP, form qua `admin-post.php` action `bd_login`/`bd_register`) · hồ sơ khi đã đăng nhập. Role người dùng = `subscriber`. Header đổi trạng thái (Đăng nhập ↔ tên + dropdown). *(Giai đoạn 1 hoàn tất: SP1 tài khoản + SP2 tích điểm đọc/like/comment/share + SP3 mở khóa dự đoán bằng điểm.)*
+- `/tai-khoan/` — Tài khoản: đăng nhập/đăng ký (engine auth WP, form qua `admin-post.php` action `bd_login`/`bd_register`) · hồ sơ khi đã đăng nhập. Role người dùng = `subscriber`. Header đổi trạng thái (Đăng nhập ↔ tên + dropdown). Hồ sơ có **điểm danh + nhiệm vụ hằng ngày + huy hiệu + link bảng xếp hạng** (SP4). *(Giai đoạn 1 hoàn tất: SP1 tài khoản + SP2 tích điểm + SP3 mở khóa dự đoán + SP4 gamification/retention.)*
+- `/bang-xep-hang-thanh-vien/` — Bảng xếp hạng thành viên (SP4): tab **Tuần** (`?range=week`, mặc định) + **Mọi thời đại** (`?range=all`), top 50 theo điểm, tô đậm hạng user hiện tại. Khách xem được (read-only). **Cần tạo WP Page slug `bang-xep-hang-thanh-vien`** để template `page-bang-xep-hang-thanh-vien.php` hoạt động.
 
 ### admin-ajax (theme)
 - `GET /wp-admin/admin-ajax.php?action=bd_fd_widget&league={slug}` — render lại body widget số liệu (BXH/Lịch/KQ) cho 1 giải; input `league` validate qua `BD_FD_LEAGUES` (sai → default `ngoai-hang-anh`). Dùng cho dropdown đổi giải trên trang chủ (không reload).
@@ -254,7 +258,12 @@ wp/bin/wp <command>   # WP-CLI wrapper local
 - **Comment** (SP2.2): hook `comment_post` → cộng 5đ comment đầu/bài (user đăng nhập, `$approved===1`). `comments.php` render list+form. Cần 2 WP option: `comment_registration=1` (bắt đăng nhập) + **`comment_previously_approved=0`** (tự duyệt cả comment đầu → cộng điểm ngay, KHÔNG giữ chờ duyệt). WP flood-control tự chặn spam comment liên tiếp.
 - **Share** (SP2.3): 3 nút FB/X/Copy trong khối reactions single (chỉ user đăng nhập) → JS gọi `bd_award sub=share` → +3đ lần đầu/bài (dedup). Không backend mới (tái dùng bd_award). Không verify share thật (cộng theo click, cap 1 lần/bài).
 - **Mở khóa dự đoán** (SP3): dự đoán tỉ số của `match_insight` (meta `prediction`) bị KHÓA ở carousel trang chủ (`match-insights.php`) + trang `/nhan-dinh/` (`insight-card.php`) — cả 2 render qua helper `bd_prediction_badge($iid,$prediction)`. Chi phí `BD_UNLOCK_COST = 5` điểm/dự đoán, **mở 1 lần xem mãi** (user meta `bd_unlocked_insights`). `bd_spend_points($uid,$amount)` (kiểm số dư server-side) + `bd_is_unlocked($uid,$iid)`. AJAX `bd_unlock` (nonce `bd_points`, chỉ user đăng nhập, KHÔNG nopriv; validate post_type=match_insight; **ghi unlocked TRƯỚC, trừ điểm SAU** để lỗi ghi meta không thiệt user; thiếu điểm → error `nopoints` 402 KHÔNG trừ; đã mở → idempotent trả prediction). **Paywall — chặn MỌI kênh server (không chỉ template):** (1) template render qua `bd_prediction_badge` (không echo giá trị khi chưa mở); (2) **REST** — meta `prediction` khai `show_in_rest` để bot ghi, nên phải có filter `rest_prepare_match_insight` (mu-plugin) giấu `prediction` cho user `!edit_posts` (bot editor vẫn đọc/ghi) — nếu quên, khách lấy dự đoán bằng 1 request `GET /wp-json/wp/v2/match_insight`; (3) **JSON-LD** — `inc/schema.php` KHÔNG đưa `prediction` vào SportsEvent (single page CPT `public=true`, khách xem-nguồn/Google index đọc được). JS reveal dùng `textContent` (chống XSS). Khách → link `/tai-khoan/`. **Bài học:** meta bị khóa (`show_in_rest`) phải gate cả template + REST-response + schema.
-- **Đã làm:** SP1 (tài khoản) + SP2 đầy đủ (đọc/like/comment/share) + SP3 (mở khóa dự đoán) → **HOÀN TẤT Giai đoạn 1**. **Chưa:** Giai đoạn 2 = nạp tiền (cần pháp lý/ĐKKD/cổng thanh toán).
+- **Gamification/Retention** (SP4, `inc/gamify.php`): tăng daily active users. **Cửa cộng điểm duy nhất `bd_credit_points($uid,$amount)`** (points.php) — cộng `bd_points` VÀ bơm `bd_points_week` (điểm tuần ISO, lazy-reset khi đổi tuần `current_time('o-\WW')`); MỌI nguồn cộng điểm đi qua đây, tiêu điểm (`bd_spend_points`) KHÔNG. Thành phần:
+  - **Điểm danh + streak:** nút ở `/tai-khoan/` (AJAX `bd_checkin`), +2đ/ngày, streak liên tiếp (bỏ lỡ→reset 1), mốc 7 ngày +10đ. Meta `bd_checkin_last`/`bd_streak`/`bd_streak_best`.
+  - **Nhiệm vụ hằng ngày** (`BD_QUESTS`): Đọc 3 bài +3đ · Thích 1 bài +2đ · Bình luận 1 bài +5đ. Tự cộng thưởng khi đủ (RIÊNG với điểm gốc action), reset 0h, dedup 1 lần/ngày/loại. `bd_quest_bump` gắn vào luồng `bd_award`/like/comment. Meta `bd_quest_day`/`bd_quest_progress`/`bd_quest_done`.
+  - **Huy hiệu** (`bd_user_badges`, suy ra từ chỉ số — KHÔNG lưu state): 8 huy hiệu điểm/streak/đọc/comment/mở-khóa, phân hạng bronze/silver/gold. Render `template-parts/badge-grid.php` (huy chương gradient theo hạng).
+  - **Bảng xếp hạng** `/bang-xep-hang-thanh-vien/` (`bd_leaderboard`/`bd_user_rank`): tuần (`bd_points_week` + `bd_week_id`) + all-time (`bd_points`), tô đậm user.
+- **Đã làm:** SP1 (tài khoản) + SP2 (đọc/like/comment/share) + SP3 (mở khóa dự đoán) + SP4 (điểm danh/nhiệm vụ/huy hiệu/xếp hạng) → **HOÀN TẤT Giai đoạn 1**. **Chưa:** Giai đoạn 2 = nạp tiền (cần pháp lý/ĐKKD/cổng thanh toán).
 
 ---
 
