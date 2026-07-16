@@ -42,6 +42,12 @@
       <?php endif; ?>
 
       <div class="p-6 md:p-10 rounded-3xl border border-card shadow-inner bg-card">
+        <?php if (has_excerpt()) : ?>
+          <div class="mb-8 rounded-r-lg border-l-4 border-brand bg-control p-5">
+            <div class="font-hemi text-xs uppercase tracking-wide text-brand mb-2">Tóm tắt nhanh</div>
+            <p class="text-sm leading-relaxed text-secondary"><?php echo esc_html(get_the_excerpt()); ?></p>
+          </div>
+        <?php endif; ?>
         <?php $bd_c = bd_toc(apply_filters('the_content', get_the_content())); ?>
         <?php if (count($bd_c['items']) >= 3) : ?>
           <nav class="mb-8 p-5 rounded-2xl border border-card bg-control" aria-label="Mục lục">
