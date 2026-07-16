@@ -7,7 +7,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brand: #0232ff;
+  --color-brand: #0e1217;      /* Trắng-đen: brand = gần-đen ở light mode */
+  --color-on-brand: #ffffff;   /* Chữ/icon trên nền bg-brand (ngược màu brand) */
   --color-accent: #dc2626;
 
   --font-inter: "Inter", system-ui, sans-serif;
@@ -44,9 +45,9 @@
   --bd-border: #2a2f3a;
   --bd-control: #1c1f26;
 
-  /* Brand sáng hơn cho dark mode — #0232ff quá đậm, khó đọc trên nền tối.
-     Override biến Tailwind → mọi text-brand/bg-brand/border-brand tự đổi. */
-  --color-brand: #4d7cff;
+  /* Trắng-đen: dark mode brand = gần-trắng; chữ trên nút bg-brand đổi sang gần-đen. */
+  --color-brand: #f3f3f3;
+  --color-on-brand: #0e1217;
 }
 
 @layer base {
@@ -69,7 +70,7 @@
   .bg-control     { background-color: var(--bd-control); }
   .border-card    { border-color: var(--bd-border); }
   .text-secondary { color: var(--bd-secondary); }
-  .bg-prediction  { @apply bg-brand text-white; }
+  .bg-prediction  { @apply bg-brand text-on-brand; }
   .header         { background-color: var(--bd-bg); border-bottom: 1px solid var(--bd-border); }
 
   .prose-bd h2       { @apply text-2xl uppercase mt-8 mb-4; font-family: var(--font-hemi); }

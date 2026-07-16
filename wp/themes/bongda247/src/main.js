@@ -61,7 +61,7 @@
     body.querySelectorAll("[data-fd-tab]").forEach(function (b) {
       var active = b === tab;
       b.classList.toggle("bg-brand", active);
-      b.classList.toggle("text-white", active);
+      b.classList.toggle("text-on-brand", active);
       b.classList.toggle("text-secondary", !active);
       b.setAttribute("aria-selected", String(active));
     });

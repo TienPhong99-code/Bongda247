@@ -26,7 +26,7 @@ $hot = bd_hot_posts(5);
 
             <div class="absolute bottom-0 left-0 p-6 md:p-10 z-20 w-full">
               <?php if ($cat) : ?>
-                <span class="inline-block px-3 py-1 rounded-md mb-3 text-[10px] font-bold uppercase font-hemi tracking-wider bg-brand text-white">
+                <span class="inline-block px-3 py-1 rounded-md mb-3 text-[10px] font-bold uppercase font-hemi tracking-wider bg-brand text-on-brand">
                   <?php echo esc_html($cat->name); ?>
                 </span>
               <?php endif; ?>

@@ -10,7 +10,7 @@
   <div class="flex flex-wrap gap-2 mb-8">
     <?php foreach (BD_FD_LEAGUES as $slug => $lg) : ?>
       <a href="<?php echo esc_url(add_query_arg('league', $slug, get_permalink())); ?>"
-         class="px-4 py-2 rounded-full text-sm border border-card transition-colors <?php echo $slug === $bd_slug ? 'bg-brand text-white' : 'text-secondary hover:text-brand'; ?>">
+         class="px-4 py-2 rounded-full text-sm border border-card transition-colors <?php echo $slug === $bd_slug ? 'bg-brand text-on-brand' : 'text-secondary hover:text-brand'; ?>">
         <?php echo esc_html($lg['name']); ?>
       </a>
     <?php endforeach; ?>

@@ -78,7 +78,7 @@ $bd_login  = '<path d="M9 8v-2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h
         </a>
       </div>
     <?php else : ?>
-      <a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="flex items-center justify-center gap-2 rounded-lg bg-brand text-white py-2 text-sm font-medium hover:opacity-90 transition-opacity">
+      <a href="<?php echo esc_url(home_url('/tai-khoan/')); ?>" class="flex items-center justify-center gap-2 rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?php echo $bd_login; ?></svg>
         Đăng nhập / Đăng ký
       </a>

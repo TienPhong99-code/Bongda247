@@ -20,7 +20,7 @@
       <div class="mt-4 pt-4 border-t border-card" data-bd-checkin-box data-bd-ajax="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" data-bd-nonce="<?php echo esc_attr(wp_create_nonce('bd_points')); ?>">
         <div class="flex items-center gap-3 flex-wrap">
           <span class="text-sm">🔥 Chuỗi <span data-bd-streak class="font-bold text-brand"><?php echo $bd_streak; ?></span> ngày</span>
-          <button data-bd-checkin type="button" <?php echo $bd_done_today ? 'disabled' : ''; ?> class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors <?php echo $bd_done_today ? 'border border-card text-secondary cursor-default' : 'bg-brand text-white hover:opacity-90'; ?>">
+          <button data-bd-checkin type="button" <?php echo $bd_done_today ? 'disabled' : ''; ?> class="rounded-full px-4 py-1.5 text-sm font-medium transition-colors <?php echo $bd_done_today ? 'border border-card text-secondary cursor-default' : 'bg-brand text-on-brand hover:opacity-90'; ?>">
             <?php echo $bd_done_today ? 'Đã điểm danh hôm nay ✓' : 'Điểm danh hôm nay (+2đ)'; ?>
           </button>
         </div>
@@ -67,7 +67,7 @@
         <input type="text" name="login" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
         <label class="block text-sm text-secondary mb-1">Mật khẩu</label>
         <input type="password" name="password" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-4 text-sm focus:outline-none focus:border-brand">
-        <button type="submit" class="w-full rounded-lg bg-brand text-white py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng nhập</button>
+        <button type="submit" class="w-full rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng nhập</button>
       </form>
       <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rounded-2xl border border-card bg-card p-6">
         <h2 class="font-hemi text-lg uppercase mb-4">Đăng ký</h2>
@@ -79,7 +79,7 @@
         <input type="email" name="email" required class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-3 text-sm focus:outline-none focus:border-brand">
         <label class="block text-sm text-secondary mb-1">Mật khẩu (≥ 8 ký tự)</label>
         <input type="password" name="password" required minlength="8" class="w-full rounded-lg bg-control border border-card px-3 py-2 mb-4 text-sm focus:outline-none focus:border-brand">
-        <button type="submit" class="w-full rounded-lg bg-brand text-white py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng ký</button>
+        <button type="submit" class="w-full rounded-lg bg-brand text-on-brand py-2 text-sm font-medium hover:opacity-90 transition-opacity">Đăng ký</button>
       </form>
     </div>
   <?php endif; ?>

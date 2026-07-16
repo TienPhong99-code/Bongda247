@@ -33,7 +33,7 @@ $bd_row = function ($m, $finished) {
 };
 ?>
 <div class="flex gap-1 mb-3">
-  <button type="button" data-fd-tab="bxh"  class="px-3 py-1.5 text-xs rounded-full border border-card bg-brand text-white" aria-selected="true">BXH</button>
+  <button type="button" data-fd-tab="bxh"  class="px-3 py-1.5 text-xs rounded-full border border-card bg-brand text-on-brand" aria-selected="true">BXH</button>
   <button type="button" data-fd-tab="lich" class="px-3 py-1.5 text-xs rounded-full border border-card text-secondary hover:text-brand" aria-selected="false">Lịch</button>
   <button type="button" data-fd-tab="kq"   class="px-3 py-1.5 text-xs rounded-full border border-card text-secondary hover:text-brand" aria-selected="false">Kết quả</button>
 </div>

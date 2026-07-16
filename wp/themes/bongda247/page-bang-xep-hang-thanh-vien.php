@@ -9,8 +9,8 @@ $bd_medal  = ['', '🥇', '🥈', '🥉'];
   <h1 class="font-hemi text-3xl uppercase border-l-4 border-brand pl-4 mb-6">Bảng xếp hạng thành viên</h1>
 
   <div class="flex gap-2 mb-6">
-    <a href="?range=week" class="px-4 py-2 rounded-full text-sm font-medium <?php echo $bd_range === 'week' ? 'bg-brand text-white' : 'border border-card text-secondary hover:border-brand'; ?>">Tuần này</a>
-    <a href="?range=all" class="px-4 py-2 rounded-full text-sm font-medium <?php echo $bd_range === 'all' ? 'bg-brand text-white' : 'border border-card text-secondary hover:border-brand'; ?>">Mọi thời đại</a>
+    <a href="?range=week" class="px-4 py-2 rounded-full text-sm font-medium <?php echo $bd_range === 'week' ? 'bg-brand text-on-brand' : 'border border-card text-secondary hover:border-brand'; ?>">Tuần này</a>
+    <a href="?range=all" class="px-4 py-2 rounded-full text-sm font-medium <?php echo $bd_range === 'all' ? 'bg-brand text-on-brand' : 'border border-card text-secondary hover:border-brand'; ?>">Mọi thời đại</a>
   </div>
 
   <?php if (!$bd_rows) : ?>

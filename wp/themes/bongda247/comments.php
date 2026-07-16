@@ -39,7 +39,7 @@ if (!function_exists('bd_comment_render')) {
       'comment_notes_before' => '',
       'comment_notes_after'  => '',
       'comment_field'        => '<p class="mb-3"><textarea id="comment" name="comment" rows="4" required class="w-full rounded-lg bg-control border border-card px-3 py-2 text-sm focus:outline-none focus:border-brand" placeholder="Viết bình luận (+5 điểm cho bình luận đầu tiên của bạn)..."></textarea></p>',
-      'class_submit'         => 'rounded-lg bg-brand text-white px-5 py-2 text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer',
+      'class_submit'         => 'rounded-lg bg-brand text-on-brand px-5 py-2 text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer',
       'label_submit'         => 'Gửi bình luận',
     ]);
   else : ?>
