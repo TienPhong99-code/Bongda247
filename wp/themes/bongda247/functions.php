@@ -42,6 +42,15 @@ add_action('wp_enqueue_scripts', function () {
     );
 });
 
+// Favicon — logo 247 (trắng trên nền đen bo tự nhiên). Nhúng bằng theme (in-git,
+// chạy ngay trên production, không phụ thuộc WP Site Icon trong DB).
+add_action('wp_head', function () {
+    $u = get_stylesheet_directory_uri() . '/assets/';
+    echo '<link rel="icon" type="image/png" sizes="32x32" href="' . esc_url($u . 'favicon-32.png') . '">' . "\n";
+    echo '<link rel="icon" type="image/png" sizes="512x512" href="' . esc_url($u . 'favicon.png') . '">' . "\n";
+    echo '<link rel="apple-touch-icon" href="' . esc_url($u . 'favicon-180.png') . '">' . "\n";
+}, 5);
+
 // AJAX: render lại widget số liệu theo giải (đổi giải không reload trang).
 add_action('wp_ajax_bd_fd_widget', 'bd_fd_widget_ajax');
 add_action('wp_ajax_nopriv_bd_fd_widget', 'bd_fd_widget_ajax');
