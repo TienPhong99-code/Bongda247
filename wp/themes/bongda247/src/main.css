@@ -43,6 +43,10 @@
   --bd-secondary: #94a3b8;
   --bd-border: #2a2f3a;
   --bd-control: #1c1f26;
+
+  /* Brand sáng hơn cho dark mode — #0232ff quá đậm, khó đọc trên nền tối.
+     Override biến Tailwind → mọi text-brand/bg-brand/border-brand tự đổi. */
+  --color-brand: #4d7cff;
 }
 
 @layer base {
