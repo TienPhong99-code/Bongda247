@@ -1,7 +1,7 @@
 <?php defined('ABSPATH') || exit; ?>
 </main>
 
-<footer class="border-t border-card py-10 lg:ml-60">
+<footer class="border-t border-card py-10 lg:ml-60 mb-16 lg:mb-0">
   <div class="container">
     <div class="flex flex-col md:flex-row items-center justify-between gap-4">
       <span class="font-hemi text-xl uppercase">
@@ -29,6 +29,8 @@
     </div>
   </div>
 </footer>
+
+<?php get_template_part('template-parts/bottom-nav'); ?>
 
 <?php wp_footer(); ?>
 </body>
