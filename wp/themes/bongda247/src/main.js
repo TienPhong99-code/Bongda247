@@ -63,6 +63,7 @@
       b.classList.toggle("bg-brand", active);
       b.classList.toggle("text-on-brand", active);
       b.classList.toggle("text-secondary", !active);
+      b.classList.toggle("hover:text-brand", !active); // hover chỉ cho tab KHÔNG active
       b.setAttribute("aria-selected", String(active));
     });
     body.querySelectorAll("[data-fd-panel]").forEach(function (p) {
@@ -82,6 +83,7 @@
       b.classList.toggle("bg-brand", active);
       b.classList.toggle("text-on-brand", active);
       b.classList.toggle("text-secondary", !active);
+      b.classList.toggle("hover:text-brand", !active); // hover chỉ cho tab KHÔNG active (tránh chữ trùng nền)
     });
     wrap.querySelectorAll("[data-bd-auth-panel]").forEach(function (p) {
       p.classList.toggle("hidden", p.getAttribute("data-bd-auth-panel") !== name);
